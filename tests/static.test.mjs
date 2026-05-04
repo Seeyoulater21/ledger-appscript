@@ -755,6 +755,228 @@ test('holding API and UI expose issue #4 workflows', () => {
   assert.match(client, /watchedSymbols/);
 });
 
+test('dashboard service normalizes USD and THB values, computes today PNL, allocation, and snapshots', () => {
+  const spreadsheet = new FakeSpreadsheet();
+  const context = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+    },
+    Utilities: {
+      getUuid: createUuidSequence(),
+    },
+  });
+
+  context.initRequiredSheets();
+
+  const trading = context.createPortfolio({
+    name: 'USD Trading',
+    type: 'trading',
+    market: 'us_stock',
+    base_currency: 'USD',
+    initial_capital: 10000,
+    commission_rate: 0,
+    risk_mode: 'none',
+    default_risk_pct: 0,
+  });
+  const manual = context.createPortfolio({
+    name: 'THB Cash',
+    type: 'manual',
+    market: 'thai_stock',
+    base_currency: 'THB',
+  });
+
+  context.addManualEntry({
+    portfolio_id: manual.portfolio_id,
+    date: '2026-05-03',
+    type: 'balance',
+    amount: 69000,
+    balance_after: 69000,
+    currency: 'THB',
+  });
+  context.createHolding({
+    asset_type: 'custom',
+    symbol: 'ART1',
+    name: 'Private art',
+    amount: 2,
+    avg_cost: 500,
+    cost_currency: 'USD',
+  });
+  context.upsertManualPrice({
+    symbol: 'USDTHB',
+    source: 'fx',
+    price: 34.5,
+    currency: 'THB',
+  });
+
+  appendObjectRow(spreadsheet, 'DailySnapshots', {
+    date: '2026-05-03',
+    total_portfolio_value_usd: 12500,
+    trading_value_usd: 11500,
+    holdings_value_usd: 1000,
+    cashflow_net_usd: 0,
+    created_at: '2026-05-03T00:00:00.000Z',
+  });
+
+  const overview = context.getDashboardOverview({ today: '2026-05-04' });
+  assert.equal(overview.currency, 'USD');
+  assert.equal(overview.fx.usd_thb, 34.5);
+  assert.equal(overview.totals.total_portfolio_value_usd, 13000);
+  assert.equal(overview.totals.trading_balance_usd, 12000);
+  assert.equal(overview.totals.holdings_value_usd, 1000);
+  assert.equal(overview.today_pnl.value_usd, 500);
+  assert.equal(overview.today_pnl.has_prior_snapshot, true);
+  assert.equal(overview.portfolios[0].portfolio_id, trading.portfolio_id);
+  assert.equal(overview.portfolios[0].pnl_pct, 0);
+  assert.equal(overview.portfolios[1].pnl_pct, '');
+  assert.equal(overview.allocation.length, 3);
+  assert.equal(overview.allocation[0].label, 'USD Trading');
+  assert.equal(overview.growth.length, 1);
+
+  const thb = context.getDashboardOverview({ currency: 'THB', today: '2026-05-04' });
+  assert.equal(thb.currency, 'THB');
+  assert.equal(thb.totals.total_portfolio_value_display, 448500);
+  assert.equal(thb.today_pnl.value_display, 17250);
+
+  const snapshot = context.createDailySnapshot({ date: '2026-05-04' });
+  assert.equal(snapshot.date, '2026-05-04');
+  assert.equal(snapshot.total_portfolio_value_usd, 13000);
+  assert.equal(context.listDailySnapshots().length, 2);
+
+  context.createDailySnapshot({ date: '2026-05-04' });
+  assert.equal(context.listDailySnapshots().length, 2);
+});
+
+test('dashboard service handles empty data and missing snapshots safely', () => {
+  const spreadsheet = new FakeSpreadsheet();
+  const context = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+    },
+  });
+
+  context.initRequiredSheets();
+
+  const overview = context.getDashboardOverview({ today: '2026-05-04' });
+  assert.equal(overview.totals.total_portfolio_value_usd, 0);
+  assert.equal(overview.today_pnl.value_usd, 0);
+  assert.equal(overview.today_pnl.has_prior_snapshot, false);
+  assert.equal(overview.allocation.length, 0);
+  assert.equal(overview.empty_states.allocation, true);
+  assert.equal(overview.empty_states.growth, true);
+});
+
+test('dashboard service excludes unsupported currencies from USD-normalized totals', () => {
+  const spreadsheet = new FakeSpreadsheet();
+  const context = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+    },
+    Utilities: {
+      getUuid: createUuidSequence(),
+    },
+  });
+
+  context.initRequiredSheets();
+  context.createPortfolio({
+    name: 'USD Trading',
+    type: 'trading',
+    market: 'us_stock',
+    base_currency: 'USD',
+    initial_capital: 1000,
+    commission_rate: 0,
+    risk_mode: 'none',
+    default_risk_pct: 0,
+  });
+  context.createPortfolio({
+    name: 'JPY Watch',
+    type: 'trading',
+    market: 'custom',
+    base_currency: 'JPY',
+    initial_capital: 100000,
+    commission_rate: 0,
+    risk_mode: 'none',
+    default_risk_pct: 0,
+  });
+
+  const overview = context.getDashboardOverview({ today: '2026-05-04' });
+
+  assert.equal(overview.totals.total_portfolio_value_usd, 1000);
+  assert.equal(overview.totals.has_unconverted_values, true);
+  assert.equal(overview.portfolios[1].value_usd, '');
+  assert.equal(overview.portfolios[1].conversion_status, 'unsupported_currency');
+  assert.deepEqual(toPlainObject(overview.unconverted_items), [
+    {
+      kind: 'trading portfolio',
+      label: 'JPY Watch',
+      currency: 'JPY',
+      value: 100000,
+    },
+  ]);
+  assert.equal(overview.warnings[0], 'Some values use unsupported currencies and are excluded from USD totals.');
+});
+
+test('bootstrap keeps portfolio data when dashboard overview cannot load holdings', () => {
+  const spreadsheet = new FakeSpreadsheet();
+  const context = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+    },
+    Utilities: {
+      getUuid: createUuidSequence(),
+    },
+  });
+
+  context.initRequiredSheets();
+  context.createPortfolio({
+    name: 'USD Trading',
+    type: 'trading',
+    market: 'us_stock',
+    base_currency: 'USD',
+    initial_capital: 1000,
+    commission_rate: 0,
+    risk_mode: 'none',
+    default_risk_pct: 0,
+  });
+  spreadsheet.sheets = spreadsheet.sheets.filter((sheet) => sheet.name !== 'Holdings');
+
+  const bootstrap = context.getAppBootstrap();
+
+  assert.equal(bootstrap.portfolios.length, 1);
+  assert.equal(bootstrap.portfolios[0].name, 'USD Trading');
+  assert.equal(bootstrap.portfolioError, undefined);
+  assert.match(bootstrap.dashboardOverviewError, /Holdings sheet is missing/);
+  assert.match(bootstrap.holdingError, /Holdings sheet is missing/);
+});
+
+test('dashboard API and UI expose issue #5 workflows', () => {
+  const code = read('src/Code.gs');
+  const index = read('src/Index.html');
+  const client = read('src/client.html');
+
+  for (const fn of [
+    'getDashboardOverviewApi',
+    'createDailySnapshotApi',
+    'listDailySnapshotsApi',
+  ]) {
+    assert.match(code, new RegExp(`function\\s+${fn}\\s*\\(`));
+  }
+
+  assert.match(index, /data-dashboard-currency/);
+  assert.match(index, /data-action="create-snapshot"/);
+  assert.match(index, /data-dashboard-total/);
+  assert.match(index, /data-dashboard-today-pnl/);
+  assert.match(index, /data-dashboard-allocation/);
+  assert.match(index, /data-dashboard-pnl-overview/);
+  assert.match(index, /data-dashboard-growth/);
+  assert.match(index, /data-dashboard-warnings/);
+  assert.match(client, /renderDashboardOverview/);
+  assert.match(client, /renderDashboardWarnings/);
+  assert.match(client, /createDailySnapshot/);
+  assert.match(client, /setDashboardCurrency/);
+  assert.match(client, /No snapshot yet/);
+  assert.match(client, /Historical charts use USD snapshots/);
+});
+
 test('position API and UI expose issue #3 workflows', () => {
   const code = read('src/Code.gs');
   const index = read('src/Index.html');
@@ -821,6 +1043,9 @@ function loadAppsScript(globals = {}) {
   vm.runInContext(read('src/PositionService.gs'), context);
   vm.runInContext(read('src/PriceService.gs'), context);
   vm.runInContext(read('src/HoldingService.gs'), context);
+  vm.runInContext(read('src/SnapshotService.gs'), context);
+  vm.runInContext(read('src/DashboardService.gs'), context);
+  vm.runInContext(read('src/Code.gs'), context);
   return context;
 }
 
@@ -831,6 +1056,16 @@ function createUuidSequence() {
 
 function toPlainObject(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function appendObjectRow(spreadsheet, sheetName, row) {
+  const context = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+    },
+  });
+  const headers = context.getHeadersForSheet_(sheetName);
+  spreadsheet.getSheetByName(sheetName).appendRow(headers.map((header) => row[header] ?? ''));
 }
 
 class FakeSpreadsheet {

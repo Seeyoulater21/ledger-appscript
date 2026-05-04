@@ -8,6 +8,11 @@ This project follows a simple human-readable changelog format.
 
 ### Added
 
+- Added Phase 5 dashboard and snapshot overview for issue #5:
+  - Dashboard overview service with USD-normalized totals, Today PNL, allocation, portfolio PNL %, and USD/THB display conversion.
+  - Daily snapshot list/create API with same-date snapshot updates in `DailySnapshots`.
+  - Mobile-first dashboard cards, allocation list, portfolio summary, PNL overview, growth view, and USD/THB toggle.
+  - Static tests for dashboard calculations, empty states, snapshot writes, and issue #5 UI/API hooks.
 - Added Phase 4 holdings and manual price cache MVP for issue #4:
   - Holding create, list, edit, and archive service functions.
   - Holdings summary with cost basis, current value, unrealized PNL, and allocation.

@@ -178,10 +178,62 @@
     line-height: 1.2;
   }
 
+  .metric-card span {
+    display: block;
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 0.86rem;
+    line-height: 1.35;
+  }
+
   .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 12px;
+  }
+
+  .dashboard-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .currency-toggle {
+    display: inline-flex;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .toggle-button {
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  .toggle-button.is-active {
+    background: var(--accent);
+    color: #ffffff;
+  }
+
+  .dashboard-layout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    align-items: start;
+    margin-bottom: 14px;
+  }
+
+  .sheet-schema-grid {
+    margin-top: 14px;
   }
 
   .portfolio-layout {
@@ -236,9 +288,73 @@
   .portfolio-list,
   .position-list,
   .watchlist-list,
+  .allocation-list,
+  .snapshot-chart,
+  .warning-list,
   .stack-form {
     display: grid;
     gap: 12px;
+  }
+
+  .warning-list {
+    margin-bottom: 12px;
+  }
+
+  .warning-copy {
+    margin: 0;
+    padding: 12px;
+    border: 1px solid #f6c453;
+    border-radius: var(--radius);
+    background: #fff7d6;
+    color: #624600;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .allocation-row,
+  .chart-row {
+    position: relative;
+    display: grid;
+    gap: 6px;
+    min-height: 64px;
+    padding: 12px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg);
+  }
+
+  .allocation-row strong,
+  .allocation-row span:not(.allocation-bar),
+  .chart-row span:first-child,
+  .chart-row strong {
+    position: relative;
+    z-index: 1;
+  }
+
+  .allocation-row span:not(.allocation-bar),
+  .chart-row span:first-child {
+    color: var(--muted);
+    font-size: 0.86rem;
+  }
+
+  .allocation-bar,
+  .chart-bar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0;
+    background: rgba(15, 118, 110, 0.12);
+  }
+
+  .chart-bar {
+    top: auto;
+    bottom: 0;
+    height: 8px;
+    background: var(--accent);
+  }
+
+  .chart-bar.is-negative {
+    background: var(--danger);
   }
 
   .stack-form + .stack-form {
@@ -393,9 +509,15 @@
     .portfolio-layout,
     .position-layout,
     .holding-layout,
+    .dashboard-layout,
     .form-grid,
     .portfolio-card {
       grid-template-columns: 1fr;
+    }
+
+    .dashboard-toolbar {
+      align-items: stretch;
+      flex-direction: column;
     }
 
     .portfolio-card strong {

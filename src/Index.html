@@ -34,22 +34,68 @@
       </nav>
 
       <section class="view is-active" data-view="dashboard">
+        <div class="dashboard-toolbar">
+          <div class="currency-toggle" data-dashboard-currency aria-label="Display currency">
+            <button class="toggle-button is-active" type="button" data-currency="USD">USD</button>
+            <button class="toggle-button" type="button" data-currency="THB">THB</button>
+          </div>
+          <button class="secondary-button" type="button" data-action="create-snapshot">Snapshot today</button>
+        </div>
+
         <div class="metric-grid">
           <article class="metric-card">
-            <p class="panel-label">Total value</p>
+            <p class="panel-label">Total portfolio value</p>
             <strong data-dashboard-total>0 USD</strong>
           </article>
           <article class="metric-card">
-            <p class="panel-label">Trading</p>
+            <p class="panel-label">Today PNL</p>
+            <strong data-dashboard-today-pnl>0 USD</strong>
+            <span data-dashboard-pnl-label>No snapshot yet</span>
+          </article>
+          <article class="metric-card">
+            <p class="panel-label">Trading balance</p>
             <strong data-dashboard-trading>0 USD</strong>
           </article>
           <article class="metric-card">
-            <p class="panel-label">Manual</p>
-            <strong data-dashboard-manual>0 USD</strong>
+            <p class="panel-label">Holdings value</p>
+            <strong data-dashboard-holdings>0 USD</strong>
           </article>
         </div>
 
-        <section class="dashboard-grid" data-sheet-list></section>
+        <div class="warning-list" data-dashboard-warnings></div>
+
+        <div class="dashboard-layout">
+          <section class="portfolio-panel">
+            <div class="section-heading">
+              <h2>Allocation</h2>
+            </div>
+            <div class="allocation-list" data-dashboard-allocation></div>
+          </section>
+
+          <section class="portfolio-panel">
+            <div class="section-heading">
+              <h2>Portfolio summary</h2>
+            </div>
+            <div class="position-list" data-dashboard-portfolio-summary></div>
+          </section>
+
+          <section class="portfolio-panel">
+            <div class="section-heading">
+              <h2>PNL overview</h2>
+            </div>
+            <div class="snapshot-chart" data-dashboard-pnl-overview></div>
+          </section>
+
+          <section class="portfolio-panel">
+            <div class="section-heading">
+              <h2>Portfolio growth</h2>
+            </div>
+            <p class="muted-copy">Historical charts use USD snapshots.</p>
+            <div class="snapshot-chart" data-dashboard-growth></div>
+          </section>
+        </div>
+
+        <section class="dashboard-grid sheet-schema-grid" data-sheet-list></section>
       </section>
 
       <section class="view" data-view="portfolios">
