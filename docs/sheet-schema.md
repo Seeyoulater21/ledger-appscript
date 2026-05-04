@@ -95,3 +95,10 @@ symbol,source,created_at
 6. Deploy as a Web App from script.google.com.
 7. Open the `/exec` URL on desktop and mobile.
 8. Confirm the shell renders and the sheet list shows 8 required tabs.
+9. Create a trading portfolio with `initial_capital` and confirm it appears in the portfolio list.
+10. Create a manual portfolio without `initial_capital` and confirm it appears in the portfolio list.
+11. Edit a portfolio name or risk setting and confirm the `Portfolios` row updates without changing `created_at`.
+12. Add a manual `balance`, `deposit`, or `withdraw` entry and confirm the latest `balance_after` is reflected in the dashboard total.
+13. Archive a portfolio from the UI, confirm the prompt appears, and confirm the row remains in `Portfolios` with `archived` set instead of being deleted.
+14. Add a backfilled manual entry with an older `date` and confirm it does not replace a newer dated balance on the dashboard.
+15. Create portfolios with different currencies and confirm the dashboard shows separate currency totals instead of one combined default-currency total.

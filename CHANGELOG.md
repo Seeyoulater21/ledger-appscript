@@ -8,6 +8,12 @@ This project follows a simple human-readable changelog format.
 
 ### Added
 
+- Added Phase 2 portfolio MVP for issue #2:
+  - Portfolio create, list, edit, and archive service functions.
+  - Manual balance/deposit/withdraw entry support for manual portfolios.
+  - Dashboard portfolio value summary.
+  - Portfolio API wrappers for frontend calls.
+  - Mobile-friendly portfolio list and forms.
 - Added Apps Script web app skeleton for issue #1:
   - `appsscript.json`
   - `src/Code.gs`
@@ -48,6 +54,9 @@ This project follows a simple human-readable changelog format.
 
 ### Fixed
 
+- Fixed manual portfolio values to use the latest manual entry by entry date instead of physical row order.
+- Fixed dashboard summaries so mixed-currency portfolios are grouped by currency instead of being added into a mislabeled default-currency total.
+- Fixed the manual-entry form so it cannot submit before a manual portfolio exists.
 - Prevented sheet initialization from overwriting row 1 data on existing required-named tabs with mismatched headers.
 
 ### Security

@@ -102,6 +102,24 @@
     white-space: nowrap;
   }
 
+  .secondary-button,
+  .danger-button {
+    min-height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .danger-button {
+    border-color: #f3b8b3;
+    color: var(--danger);
+  }
+
   .primary-button:hover,
   .primary-button:focus {
     background: var(--accent-strong);
@@ -131,10 +149,149 @@
     color: var(--accent-strong);
   }
 
+  .view {
+    display: none;
+  }
+
+  .view.is-active {
+    display: block;
+  }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .metric-card {
+    min-height: 96px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .metric-card strong {
+    display: block;
+    font-size: 1.35rem;
+    line-height: 1.2;
+  }
+
   .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 12px;
+  }
+
+  .portfolio-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+    gap: 14px;
+    align-items: start;
+  }
+
+  .portfolio-panel {
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .section-heading,
+  .row-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .section-heading {
+    margin-bottom: 14px;
+  }
+
+  .section-heading h2 {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+
+  .portfolio-list,
+  .stack-form {
+    display: grid;
+    gap: 12px;
+  }
+
+  .stack-form + .stack-form {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+
+  .portfolio-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: start;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg);
+  }
+
+  .portfolio-card h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+  }
+
+  .portfolio-card p,
+  .muted-copy,
+  .empty-state p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .portfolio-card strong {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .row-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  label {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  input,
+  select {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: #ffffff;
+    color: var(--text);
+    font: inherit;
+    font-weight: 500;
+    padding: 0 10px;
+  }
+
+  select:disabled {
+    background: var(--surface-muted);
+    color: var(--muted);
   }
 
   .sheet-card {
@@ -173,6 +330,24 @@
 
     .primary-button {
       width: 100%;
+    }
+
+    .portfolio-layout,
+    .form-grid,
+    .portfolio-card {
+      grid-template-columns: 1fr;
+    }
+
+    .portfolio-card strong {
+      text-align: left;
+    }
+
+    .row-actions {
+      justify-content: stretch;
+    }
+
+    .row-actions button {
+      flex: 1;
     }
 
     .tabbar {

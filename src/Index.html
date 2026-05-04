@@ -27,13 +27,176 @@
       </section>
 
       <nav class="tabbar" aria-label="Ledger sections">
-        <button class="tab is-active" type="button">Dashboard</button>
-        <button class="tab" type="button">Portfolios</button>
-        <button class="tab" type="button">Positions</button>
-        <button class="tab" type="button">Holdings</button>
+        <button class="tab is-active" type="button" data-view-tab="dashboard">Dashboard</button>
+        <button class="tab" type="button" data-view-tab="portfolios">Portfolios</button>
+        <button class="tab" type="button" data-view-tab="positions">Positions</button>
+        <button class="tab" type="button" data-view-tab="holdings">Holdings</button>
       </nav>
 
-      <section class="dashboard-grid" data-sheet-list></section>
+      <section class="view is-active" data-view="dashboard">
+        <div class="metric-grid">
+          <article class="metric-card">
+            <p class="panel-label">Total value</p>
+            <strong data-dashboard-total>0 USD</strong>
+          </article>
+          <article class="metric-card">
+            <p class="panel-label">Trading</p>
+            <strong data-dashboard-trading>0 USD</strong>
+          </article>
+          <article class="metric-card">
+            <p class="panel-label">Manual</p>
+            <strong data-dashboard-manual>0 USD</strong>
+          </article>
+        </div>
+
+        <section class="dashboard-grid" data-sheet-list></section>
+      </section>
+
+      <section class="view" data-view="portfolios">
+        <div class="portfolio-layout">
+          <section class="portfolio-panel">
+            <div class="section-heading">
+              <h2>Portfolios</h2>
+              <button class="secondary-button" type="button" data-action="new-portfolio">New</button>
+            </div>
+            <div class="portfolio-list" data-portfolio-list></div>
+          </section>
+
+          <section class="portfolio-panel">
+            <form class="stack-form" data-portfolio-form>
+              <input type="hidden" name="portfolio_id">
+              <div class="section-heading">
+                <h2 data-portfolio-form-title>New portfolio</h2>
+                <button class="secondary-button" type="button" data-action="clear-portfolio-form">Clear</button>
+              </div>
+
+              <label>
+                Name
+                <input name="name" type="text" autocomplete="off" required>
+              </label>
+
+              <div class="form-grid">
+                <label>
+                  Type
+                  <select name="type" required>
+                    <option value="trading">Trading</option>
+                    <option value="manual">Manual</option>
+                  </select>
+                </label>
+
+                <label>
+                  Market
+                  <select name="market" required>
+                    <option value="crypto">Crypto</option>
+                    <option value="thai_stock">Thai stock</option>
+                    <option value="us_stock">US stock</option>
+                    <option value="options">Options</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Currency
+                  <input name="base_currency" type="text" value="USD" maxlength="8" required>
+                </label>
+
+                <label>
+                  Initial capital
+                  <input name="initial_capital" type="number" inputmode="decimal" step="0.01">
+                </label>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Commission rate
+                  <input name="commission_rate" type="number" inputmode="decimal" step="0.0001" value="0">
+                </label>
+
+                <label>
+                  Risk mode
+                  <select name="risk_mode">
+                    <option value="none">None</option>
+                    <option value="percent">Percent</option>
+                    <option value="fixed">Fixed</option>
+                  </select>
+                </label>
+              </div>
+
+              <label>
+                Default risk %
+                <input name="default_risk_pct" type="number" inputmode="decimal" step="0.01" value="0">
+              </label>
+
+              <button class="primary-button" type="submit">Save portfolio</button>
+            </form>
+
+            <form class="stack-form" data-manual-entry-form>
+              <div class="section-heading">
+                <h2>Manual entry</h2>
+              </div>
+
+              <label>
+                Portfolio
+                <select name="portfolio_id" required data-manual-portfolio-select></select>
+              </label>
+
+              <div class="form-grid">
+                <label>
+                  Type
+                  <select name="type" required>
+                    <option value="balance">Balance</option>
+                    <option value="deposit">Deposit</option>
+                    <option value="withdraw">Withdraw</option>
+                  </select>
+                </label>
+
+                <label>
+                  Date
+                  <input name="date" type="date" required>
+                </label>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Amount
+                  <input name="amount" type="number" inputmode="decimal" step="0.01" required>
+                </label>
+
+                <label>
+                  Balance after
+                  <input name="balance_after" type="number" inputmode="decimal" step="0.01" required>
+                </label>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Currency
+                  <input name="currency" type="text" value="USD" maxlength="8" required>
+                </label>
+
+                <label>
+                  Note
+                  <input name="note" type="text" autocomplete="off">
+                </label>
+              </div>
+
+              <button class="primary-button" type="submit" data-manual-entry-submit>Save entry</button>
+            </form>
+          </section>
+        </div>
+      </section>
+
+      <section class="view empty-state" data-view="positions">
+        <h2>Positions</h2>
+        <p>Phase 3</p>
+      </section>
+
+      <section class="view empty-state" data-view="holdings">
+        <h2>Holdings</h2>
+        <p>Phase 4</p>
+      </section>
     </main>
 
     <?!= include('client') ?>
