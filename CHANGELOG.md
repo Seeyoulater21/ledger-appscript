@@ -8,6 +8,14 @@ This project follows a simple human-readable changelog format.
 
 ### Added
 
+- Added Phase 4 holdings and manual price cache MVP for issue #4:
+  - Holding create, list, edit, and archive service functions.
+  - Holdings summary with cost basis, current value, unrealized PNL, and allocation.
+  - Manual `PriceCache` service functions using source labels aligned with the price-feed project.
+  - Watchlist add/remove support with non-destructive soft removal.
+  - Holding, manual price, and watchlist API wrappers for frontend calls.
+  - Mobile-friendly holdings, manual price cache, and watchlist UI.
+  - Static tests for holdings valuation, custom/fallback prices, manual prices, watchlist behavior, and UI/API hooks.
 - Added Phase 3 position MVP for issue #3:
   - Position create/list/close/scale-out service functions.
   - Server-side realized PNL and basic closed-trade analytics.

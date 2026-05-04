@@ -198,6 +198,13 @@
     align-items: start;
   }
 
+  .holding-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 460px);
+    gap: 14px;
+    align-items: start;
+  }
+
   .portfolio-panel {
     padding: 16px;
     border: 1px solid var(--line);
@@ -228,6 +235,7 @@
 
   .portfolio-list,
   .position-list,
+  .watchlist-list,
   .stack-form {
     display: grid;
     gap: 12px;
@@ -384,6 +392,7 @@
 
     .portfolio-layout,
     .position-layout,
+    .holding-layout,
     .form-grid,
     .portfolio-card {
       grid-template-columns: 1fr;

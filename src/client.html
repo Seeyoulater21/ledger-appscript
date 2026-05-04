@@ -6,6 +6,10 @@
     openPositions: [],
     closedPositions: [],
     tradingAnalytics: null,
+    holdings: [],
+    holdingsSummary: null,
+    priceCache: [],
+    watchlist: [],
   };
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -20,6 +24,11 @@
     document.querySelector('[data-position-form]').addEventListener('submit', savePosition);
     document.querySelector('[data-position-close-form]').addEventListener('submit', closePosition);
     document.querySelector('[data-position-scale-form]').addEventListener('submit', scaleOutPosition);
+    document.querySelector('[data-action="new-holding"]').addEventListener('click', resetHoldingForm);
+    document.querySelector('[data-action="clear-holding-form"]').addEventListener('click', resetHoldingForm);
+    document.querySelector('[data-holding-form]').addEventListener('submit', saveHolding);
+    document.querySelector('[data-price-cache-form]').addEventListener('submit', saveManualPrice);
+    document.querySelector('[data-watchlist-form]').addEventListener('submit', addWatchlistSymbol);
 
     document.querySelectorAll('[data-view-tab]').forEach((tab) => {
       tab.addEventListener('click', () => activateView(tab.dataset.viewTab));
@@ -40,16 +49,24 @@
         state.openPositions = bootstrap.openPositions || [];
         state.closedPositions = bootstrap.closedPositions || [];
         state.tradingAnalytics = bootstrap.tradingAnalytics || {};
+        state.holdings = bootstrap.holdings || [];
+        state.holdingsSummary = bootstrap.holdingsSummary || {};
+        state.priceCache = bootstrap.priceCache || [];
+        state.watchlist = bootstrap.watchlist || [];
         renderSheetList(bootstrap.schema.sheets);
         renderDashboard(bootstrap.dashboard);
         renderPortfolios(state.portfolios);
         renderPositions(state.openPositions, state.closedPositions);
         renderTradingAnalytics(state.tradingAnalytics);
+        renderHoldings(state.holdings, state.holdingsSummary);
+        renderPriceCache(state.priceCache);
+        renderWatchlist(state.watchlist);
         setStatus(
           bootstrap.portfolioError ||
             bootstrap.positionError ||
+            bootstrap.holdingError ||
             `${bootstrap.schema.sheets.length} required sheets configured`,
-          Boolean(bootstrap.portfolioError || bootstrap.positionError)
+          Boolean(bootstrap.portfolioError || bootstrap.positionError || bootstrap.holdingError)
         );
       })
       .withFailureHandler(handleFailure)
@@ -192,6 +209,71 @@
       .scaleOutPositionApi(positionId, payload);
   }
 
+  function saveHolding(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const payload = formToObject(form);
+    const holdingId = payload.holding_id;
+
+    delete payload.holding_id;
+    removeBlankFields(payload);
+
+    const runner = google.script.run
+      .withSuccessHandler(() => {
+        resetHoldingForm();
+        loadBootstrap();
+        setStatus('Holding saved');
+      })
+      .withFailureHandler(handleFailure);
+
+    if (holdingId) {
+      runner.updateHoldingApi(holdingId, payload);
+    } else {
+      runner.createHoldingApi(payload);
+    }
+  }
+
+  function saveManualPrice(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const payload = formToObject(form);
+
+    google.script.run
+      .withSuccessHandler(() => {
+        form.reset();
+        form.elements.currency.value = 'USD';
+        loadBootstrap();
+        setStatus('Manual price saved');
+      })
+      .withFailureHandler(handleFailure)
+      .upsertManualPriceApi(payload);
+  }
+
+  function addWatchlistSymbol(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const payload = formToObject(form);
+
+    google.script.run
+      .withSuccessHandler(() => {
+        form.reset();
+        loadBootstrap();
+        setStatus('Watchlist updated');
+      })
+      .withFailureHandler(handleFailure)
+      .addWatchlistSymbolApi(payload);
+  }
+
+  function removeWatchlistSymbol(symbol, source) {
+    google.script.run
+      .withSuccessHandler(() => {
+        loadBootstrap();
+        setStatus('Watchlist symbol removed');
+      })
+      .withFailureHandler(handleFailure)
+      .removeWatchlistSymbolApi(symbol, source);
+  }
+
   function archivePortfolio(portfolioId) {
     const portfolio = state.portfolios.find((item) => item.portfolio_id === portfolioId);
     const name = portfolio ? portfolio.name : 'this portfolio';
@@ -209,6 +291,23 @@
       .archivePortfolioApi(portfolioId);
   }
 
+  function archiveHolding(holdingId) {
+    const holding = state.holdings.find((item) => item.holding_id === holdingId);
+    const name = holding ? holding.symbol : 'this holding';
+
+    if (!confirm(`Archive ${name}?`)) {
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(() => {
+        loadBootstrap();
+        setStatus('Holding archived');
+      })
+      .withFailureHandler(handleFailure)
+      .archiveHoldingApi(holdingId);
+  }
+
   function editPortfolio(portfolioId) {
     const portfolio = state.portfolios.find((item) => item.portfolio_id === portfolioId);
     if (!portfolio) {
@@ -219,6 +318,18 @@
     fillForm(form, portfolio);
     document.querySelector('[data-portfolio-form-title]').textContent = 'Edit portfolio';
     activateView('portfolios');
+  }
+
+  function editHolding(holdingId) {
+    const holding = state.holdings.find((item) => item.holding_id === holdingId);
+    if (!holding) {
+      return;
+    }
+
+    const form = document.querySelector('[data-holding-form]');
+    fillForm(form, holding);
+    document.querySelector('[data-holding-form-title]').textContent = 'Edit holding';
+    activateView('holdings');
   }
 
   function renderDashboard(summary) {
@@ -454,6 +565,159 @@
     );
   }
 
+  function renderHoldings(holdings, summary) {
+    renderHoldingsSummary(summary || {});
+
+    const list = document.querySelector('[data-holding-list]');
+    const watchedSymbols = new Set((state.watchlist || []).map((item) => item.symbol));
+    const sorted = holdings.slice().sort((left, right) => {
+      const leftWatched = watchedSymbols.has(left.symbol) ? 0 : 1;
+      const rightWatched = watchedSymbols.has(right.symbol) ? 0 : 1;
+      if (leftWatched !== rightWatched) {
+        return leftWatched - rightWatched;
+      }
+      return left.symbol.localeCompare(right.symbol);
+    });
+
+    list.innerHTML = '';
+
+    if (sorted.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'muted-copy';
+      empty.textContent = 'No holdings';
+      list.append(empty);
+      return;
+    }
+
+    sorted.forEach((holding) => {
+      const card = document.createElement('article');
+      card.className = 'portfolio-card';
+
+      const main = document.createElement('div');
+      const title = document.createElement('h3');
+      title.textContent = holding.symbol;
+      const meta = document.createElement('p');
+      meta.textContent = `${holding.asset_type} / ${formatNumber(holding.amount)} qty / ${holding.price_label}`;
+      main.append(title, meta);
+
+      const value = document.createElement('strong');
+      value.textContent = formatMoney(holding.current_value, holding.current_price_currency || holding.cost_currency);
+
+      const actions = document.createElement('div');
+      actions.className = 'row-actions';
+
+      const edit = document.createElement('button');
+      edit.className = 'secondary-button';
+      edit.type = 'button';
+      edit.textContent = 'Edit';
+      edit.addEventListener('click', () => editHolding(holding.holding_id));
+
+      const archive = document.createElement('button');
+      archive.className = 'danger-button';
+      archive.type = 'button';
+      archive.textContent = 'Archive';
+      archive.addEventListener('click', () => archiveHolding(holding.holding_id));
+
+      actions.append(edit, archive);
+      card.append(main, value, actions);
+      list.append(card);
+    });
+  }
+
+  function renderHoldingsSummary(summary) {
+    if (summary.has_mixed_currencies) {
+      document.querySelector('[data-holdings-current-value]').textContent = formatCurrencyBreakdown(
+        summary.current_value_by_currency
+      );
+      document.querySelector('[data-holdings-cost-basis]').textContent = formatCurrencyBreakdown(
+        summary.cost_basis_by_currency
+      );
+      document.querySelector('[data-holdings-pnl]').textContent = formatCurrencyBreakdown(
+        summary.unrealized_pnl_by_currency
+      );
+      return;
+    }
+
+    const currency = summary.currency || 'USD';
+    document.querySelector('[data-holdings-current-value]').textContent = formatMoney(
+      summary.total_current_value || 0,
+      currency
+    );
+    document.querySelector('[data-holdings-cost-basis]').textContent = formatMoney(
+      summary.total_cost_basis || 0,
+      currency
+    );
+    document.querySelector('[data-holdings-pnl]').textContent = formatMoney(
+      summary.total_unrealized_pnl || 0,
+      currency
+    );
+  }
+
+  function renderPriceCache(prices) {
+    const list = document.querySelector('[data-price-cache-list]');
+    list.innerHTML = '';
+
+    if (prices.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'muted-copy';
+      empty.textContent = 'No manual prices';
+      list.append(empty);
+      return;
+    }
+
+    prices.forEach((price) => {
+      const card = document.createElement('article');
+      card.className = 'portfolio-card position-card';
+
+      const main = document.createElement('div');
+      const title = document.createElement('h3');
+      title.textContent = price.symbol;
+      const meta = document.createElement('p');
+      meta.textContent = `${price.source} / ${price.updated_at || 'not updated'}`;
+      main.append(title, meta);
+
+      const value = document.createElement('strong');
+      value.textContent = formatMoney(price.price, price.currency || 'USD');
+
+      card.append(main, value);
+      list.append(card);
+    });
+  }
+
+  function renderWatchlist(watchlist) {
+    const list = document.querySelector('[data-watchlist-list]');
+    list.innerHTML = '';
+
+    if (watchlist.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'muted-copy';
+      empty.textContent = 'No watched symbols';
+      list.append(empty);
+      return;
+    }
+
+    watchlist.forEach((item) => {
+      const row = document.createElement('article');
+      row.className = 'portfolio-card';
+
+      const main = document.createElement('div');
+      const title = document.createElement('h3');
+      title.textContent = item.symbol;
+      const meta = document.createElement('p');
+      meta.textContent = item.source;
+      main.append(title, meta);
+
+      const remove = document.createElement('button');
+      remove.className = 'danger-button';
+      remove.type = 'button';
+      remove.textContent = 'Remove';
+      remove.addEventListener('click', () => removeWatchlistSymbol(item.symbol, item.source));
+
+      row.append(main, remove);
+      list.append(row);
+    });
+  }
+
   function renderSheetList(sheets) {
     const list = document.querySelector('[data-sheet-list]');
     list.innerHTML = '';
@@ -491,6 +755,17 @@
     form.elements.default_risk_pct.value = '0';
     form.elements.portfolio_id.value = '';
     document.querySelector('[data-portfolio-form-title]').textContent = 'New portfolio';
+  }
+
+  function resetHoldingForm() {
+    const form = document.querySelector('[data-holding-form]');
+    form.reset();
+    form.elements.holding_id.value = '';
+    form.elements.asset_type.value = 'crypto';
+    form.elements.cost_currency.value = 'USD';
+    form.elements.avg_cost.value = '0';
+    form.elements.price_source.value = 'manual';
+    document.querySelector('[data-holding-form-title]').textContent = 'New holding';
   }
 
   function setToday() {
