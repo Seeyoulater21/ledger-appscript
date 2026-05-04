@@ -225,6 +225,9 @@ Before marking a deployment as successful:
 [ ] App can add holding
 [ ] App can update manual price
 [ ] Dashboard totals refresh
+[ ] Settings can export backup JSON
+[ ] Trusted backup JSON imports in a copied test Sheet after typing IMPORT
+[ ] Reset clears app-owned rows only after typing RESET
 [ ] Data appears in the correct Google Sheet
 [ ] Mobile browser opens the app
 [ ] No private Sheet ID is committed to GitHub

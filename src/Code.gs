@@ -248,3 +248,15 @@ function addWatchlistSymbolApi(payload) {
 function removeWatchlistSymbolApi(symbol, source) {
   return removeWatchlistSymbol(symbol, source || 'manual');
 }
+
+function createLedgerBackupApi() {
+  return createLedgerBackup();
+}
+
+function importLedgerBackupApi(backupJson, options) {
+  return importLedgerBackup(backupJson, options || {});
+}
+
+function resetLedgerDataApi(options) {
+  return resetLedgerData(options || {});
+}

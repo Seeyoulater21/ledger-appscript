@@ -32,6 +32,9 @@
     document.querySelector('[data-holding-form]').addEventListener('submit', saveHolding);
     document.querySelector('[data-price-cache-form]').addEventListener('submit', saveManualPrice);
     document.querySelector('[data-watchlist-form]').addEventListener('submit', addWatchlistSymbol);
+    document.querySelector('[data-action="export-backup"]').addEventListener('click', exportBackup);
+    document.querySelector('[data-import-backup-form]').addEventListener('submit', importBackup);
+    document.querySelector('[data-reset-ledger-form]').addEventListener('submit', resetLedger);
 
     document.querySelectorAll('[data-view-tab]').forEach((tab) => {
       tab.addEventListener('click', () => activateView(tab.dataset.viewTab));
@@ -315,6 +318,70 @@
       })
       .withFailureHandler(handleFailure)
       .removeWatchlistSymbolApi(symbol, source);
+  }
+
+  function exportBackup() {
+    setStatus('Exporting backup');
+
+    google.script.run
+      .withSuccessHandler((backup) => {
+        const json = JSON.stringify(backup, null, 2);
+        document.querySelector('[data-backup-output]').value = json;
+        setStatus('Backup exported');
+      })
+      .withFailureHandler(handleFailure)
+      .createLedgerBackupApi();
+  }
+
+  function importBackup(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = formToObject(form);
+
+    if (values.import_confirmation !== 'IMPORT') {
+      setStatus('Type IMPORT to confirm backup import', true);
+      return;
+    }
+
+    if (!confirm('Import this trusted backup and replace current app rows?')) {
+      return;
+    }
+
+    setStatus('Importing backup');
+    google.script.run
+      .withSuccessHandler((result) => {
+        form.reset();
+        loadBootstrap();
+        setStatus(formatImportStatus(result));
+      })
+      .withFailureHandler(handleFailure)
+      .importLedgerBackupApi(values.backup_json, { confirmation: 'IMPORT' });
+  }
+
+  function resetLedger(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = formToObject(form);
+
+    if (values.reset_confirmation !== 'RESET') {
+      setStatus('Type RESET to confirm ledger reset', true);
+      return;
+    }
+
+    if (!confirm('Reset this ledger? Recovery requires an external backup.')) {
+      return;
+    }
+
+    setStatus('Resetting ledger');
+    google.script.run
+      .withSuccessHandler((result) => {
+        form.reset();
+        document.querySelector('[data-backup-output]').value = '';
+        loadBootstrap();
+        setStatus(formatResetStatus(result));
+      })
+      .withFailureHandler(handleFailure)
+      .resetLedgerDataApi({ confirmation: 'RESET' });
   }
 
   function archivePortfolio(portfolioId) {
@@ -1094,6 +1161,22 @@
     const created = result.created.length;
     const updated = result.updated.length;
     return `${created} created, ${updated} updated`;
+  }
+
+  function formatImportStatus(result) {
+    const total = Object.values((result && result.imported) || {}).reduce(
+      (sum, count) => sum + Number(count || 0),
+      0
+    );
+    return `${total} backup rows imported`;
+  }
+
+  function formatResetStatus(result) {
+    const total = Object.values((result && result.cleared) || {}).reduce(
+      (sum, count) => sum + Number(count || 0),
+      0
+    );
+    return `${total} app rows cleared`;
   }
 
   function setStatus(message, isError = false) {

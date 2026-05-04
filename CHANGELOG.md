@@ -8,6 +8,13 @@ This project follows a simple human-readable changelog format.
 
 ### Added
 
+- Added Phase 6 backup, clone polish, and deployment readiness for issue #6:
+  - JSON backup export for Settings, Portfolios, Positions, ManualEntries, Holdings, PriceCache, DailySnapshots, and Watchlist.
+  - Trusted JSON import flow with `IMPORT` confirmation and schema validation.
+  - Reset flow with `RESET` confirmation that clears app-owned rows and restores Settings defaults.
+  - Settings/Backup UI for export, import, and reset.
+  - Clone guide, mobile usage guide, and end-to-end manual test checklist.
+  - Static tests for backup import/export/reset behavior, UI/API hooks, and issue #6 docs.
 - Added Phase 5 dashboard and snapshot overview for issue #5:
   - Dashboard overview service with USD-normalized totals, Today PNL, allocation, portfolio PNL %, and USD/THB display conversion.
   - Daily snapshot list/create API with same-date snapshot updates in `DailySnapshots`.

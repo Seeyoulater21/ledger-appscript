@@ -29,6 +29,8 @@ The live app URL should come from a Google Apps Script Web App deployment.
 
 GitHub Pages is not used for MVP.
 
+Do not commit credentials, OAuth tokens, private Google Sheet URLs, private Web App URLs, or backup JSON.
+
 ---
 
 ## Product Goal
@@ -185,6 +187,18 @@ Positions
 Holdings
 Price Feed
 Settings / Backup
+```
+
+## Backup And Clone Docs
+
+The Settings screen can export a JSON backup, import a trusted JSON backup with `IMPORT` confirmation, and reset app-owned rows with `RESET` confirmation.
+
+Additional guides:
+
+```text
+docs/clone-guide.md
+docs/mobile-usage.md
+docs/manual-test-checklist.md
 ```
 
 ---
