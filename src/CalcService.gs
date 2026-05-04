@@ -1,9 +1,8 @@
 function calculatePositionSize_(input) {
   var mode = String(input.sizing_mode || 'manual_qty');
   var entryPrice = parsePositiveNumber_(input.entry_price, 'entry_price');
-  var stopLoss = parseOptionalPositiveNumber_(input.stop_loss, '');
-  var qty = parseOptionalPositiveNumber_(input.qty, '');
-  var positionSize = parseOptionalPositiveNumber_(input.position_size, '');
+  var stopLoss = parseOptionalPositiveField_(input.stop_loss, 'stop_loss', '');
+  var qty = parseOptionalPositiveField_(input.qty, 'qty', '');
 
   if (mode === 'manual_qty') {
     if (!qty) {
@@ -11,7 +10,7 @@ function calculatePositionSize_(input) {
     }
     return {
       qty: roundLedgerNumber_(qty),
-      position_size: roundLedgerNumber_(positionSize || qty * entryPrice),
+      position_size: roundLedgerNumber_(qty * entryPrice),
     };
   }
 
@@ -35,7 +34,7 @@ function calculatePositionSize_(input) {
     throw new Error('Sizing mode must be manual_qty, fixed_risk_percent, or fixed_cash.');
   }
 
-  positionSize = riskAmount / riskDistance;
+  var positionSize = riskAmount / riskDistance;
   qty = positionSize / entryPrice;
 
   return {
@@ -166,14 +165,35 @@ function parsePositiveNumber_(value, fieldName) {
   return numberValue;
 }
 
-function parseOptionalPositiveNumber_(value, fallback) {
+function parseOptionalPositiveField_(value, fieldName, fallback) {
   if (value === undefined || value === null || value === '') {
     return fallback;
   }
 
   var numberValue = Number(value);
-  if (!isFinite(numberValue) || numberValue <= 0) {
+  if (!isFinite(numberValue)) {
+    throw new Error(fieldName + ' must be a number.');
+  }
+
+  if (numberValue <= 0) {
+    throw new Error(fieldName + ' must be positive.');
+  }
+
+  return numberValue;
+}
+
+function parseOptionalNonNegativeNumber_(value, fieldName, fallback) {
+  if (value === undefined || value === null || value === '') {
     return fallback;
+  }
+
+  var numberValue = Number(value);
+  if (!isFinite(numberValue)) {
+    throw new Error(fieldName + ' must be a number.');
+  }
+
+  if (numberValue < 0) {
+    throw new Error(fieldName + ' must be non-negative.');
   }
 
   return numberValue;

@@ -58,7 +58,7 @@ function closePosition(positionId, input) {
 
   var payload = input || {};
   var exitPrice = parsePositiveNumber_(payload.exit_price, 'exit_price');
-  var feeExit = parseOptionalNumber_(payload.fee_exit, 0);
+  var feeExit = parseOptionalNonNegativeNumber_(payload.fee_exit, 'fee_exit', 0);
   var exitDate = String(payload.exit_date || '').trim() || todayIsoDate_();
   var note = String(payload.note || '').trim();
 
@@ -96,7 +96,7 @@ function scaleOutPosition(positionId, input) {
 
   var now = nowIso_();
   var exitPrice = parsePositiveNumber_(payload.exit_price, 'exit_price');
-  var feeExit = parseOptionalNumber_(payload.fee_exit, 0);
+  var feeExit = parseOptionalNonNegativeNumber_(payload.fee_exit, 'fee_exit', 0);
   var exitDate = String(payload.exit_date || '').trim() || todayIsoDate_();
   var ratio = exitQty / position.qty;
   var partialFeeEntry = roundLedgerNumber_(Number(position.fee_entry || 0) * ratio);
@@ -142,7 +142,7 @@ function getTradingAnalytics(options) {
 
 function normalizePositionInput_(input, portfolio) {
   var entryPrice = parsePositiveNumber_(input.entry_price, 'entry_price');
-  var stopLoss = parseOptionalPositiveNumber_(input.stop_loss, '');
+  var stopLoss = parseOptionalPositiveField_(input.stop_loss, 'stop_loss', '');
   var direction = String(input.direction || '').trim().toLowerCase();
   var sizingMode = normalizeSizingMode_(input.sizing_mode, portfolio);
   var sizing = calculatePositionSize_({
@@ -271,7 +271,7 @@ function normalizeSizingMode_(value, portfolio) {
 
 function normalizeEntryFee_(input, portfolio, positionSize) {
   if (input.fee_entry !== undefined && input.fee_entry !== null && input.fee_entry !== '') {
-    return parseOptionalNumber_(input.fee_entry, 0);
+    return parseOptionalNonNegativeNumber_(input.fee_entry, 'fee_entry', 0);
   }
 
   return roundLedgerNumber_(Number(positionSize || 0) * getCommissionRateForMarket_(portfolio));

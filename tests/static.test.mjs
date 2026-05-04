@@ -386,6 +386,138 @@ test('position service supports risk sizing and partial scale-out records', () =
   );
 });
 
+test('position service derives manual position size and rejects invalid numeric inputs', () => {
+  const spreadsheet = new FakeSpreadsheet();
+  const context = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+    },
+    Utilities: {
+      getUuid: createUuidSequence(),
+    },
+  });
+
+  context.initRequiredSheets();
+  const trading = context.createPortfolio({
+    name: 'Validation Trading',
+    type: 'trading',
+    market: 'crypto',
+    base_currency: 'USD',
+    initial_capital: 10000,
+    risk_mode: 'none',
+    default_risk_pct: 0,
+  });
+
+  const position = context.createPosition({
+    portfolio_id: trading.portfolio_id,
+    symbol: 'ETH',
+    direction: 'long',
+    entry_date: '2026-05-04',
+    entry_price: 100,
+    qty: 10,
+    position_size: 1,
+    stop_loss: 90,
+  });
+
+  assert.equal(position.position_size, 1000);
+  assert.equal(position.fee_entry, 1);
+
+  assert.throws(
+    () =>
+      context.createPosition({
+        portfolio_id: trading.portfolio_id,
+        symbol: 'ETH',
+        direction: 'long',
+        entry_price: 100,
+        qty: 1,
+        stop_loss: -1,
+      }),
+    /stop_loss must be positive/
+  );
+
+  assert.throws(
+    () =>
+      context.createPosition({
+        portfolio_id: trading.portfolio_id,
+        symbol: 'ETH',
+        direction: 'long',
+        entry_price: 100,
+        qty: 1,
+        stop_loss: 'abc',
+      }),
+    /stop_loss must be a number/
+  );
+
+  assert.throws(
+    () =>
+      context.createPosition({
+        portfolio_id: trading.portfolio_id,
+        symbol: 'ETH',
+        direction: 'long',
+        entry_price: 100,
+        qty: 1,
+        stop_loss: 90,
+        fee_entry: -1,
+      }),
+    /fee_entry must be non-negative/
+  );
+});
+
+test('position service rejects negative exit fees before realized PNL is written', () => {
+  const spreadsheet = new FakeSpreadsheet();
+  const context = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+    },
+    Utilities: {
+      getUuid: createUuidSequence(),
+    },
+  });
+
+  context.initRequiredSheets();
+  const trading = context.createPortfolio({
+    name: 'Fee Validation',
+    type: 'trading',
+    market: 'crypto',
+    base_currency: 'USD',
+    initial_capital: 10000,
+    risk_mode: 'none',
+    default_risk_pct: 0,
+  });
+  const position = context.createPosition({
+    portfolio_id: trading.portfolio_id,
+    symbol: 'BTC',
+    direction: 'long',
+    entry_price: 100,
+    qty: 10,
+    stop_loss: 90,
+  });
+
+  assert.throws(
+    () =>
+      context.closePosition(position.position_id, {
+        exit_price: 110,
+        fee_exit: -5,
+      }),
+    /fee_exit must be non-negative/
+  );
+
+  assert.throws(
+    () =>
+      context.scaleOutPosition(position.position_id, {
+        exit_qty: 2,
+        exit_price: 110,
+        fee_exit: -1,
+      }),
+    /fee_exit must be non-negative/
+  );
+
+  const stillOpen = context.listOpenPositions()[0];
+  assert.equal(stillOpen.status, 'open');
+  assert.equal(stillOpen.qty, 10);
+  assert.equal(context.listClosedPositions().length, 0);
+});
+
 test('position API and UI expose issue #3 workflows', () => {
   const code = read('src/Code.gs');
   const index = read('src/Index.html');
