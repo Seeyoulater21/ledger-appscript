@@ -1,0 +1,333 @@
+<script>
+  const state = {
+    schema: null,
+    dashboard: null,
+    portfolios: [],
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelector('[data-action="refresh"]').addEventListener('click', loadBootstrap);
+    document.querySelector('[data-action="init"]').addEventListener('click', initializeSheets);
+    document.querySelector('[data-action="new-portfolio"]').addEventListener('click', resetPortfolioForm);
+    document
+      .querySelector('[data-action="clear-portfolio-form"]')
+      .addEventListener('click', resetPortfolioForm);
+    document.querySelector('[data-portfolio-form]').addEventListener('submit', savePortfolio);
+    document.querySelector('[data-manual-entry-form]').addEventListener('submit', saveManualEntry);
+
+    document.querySelectorAll('[data-view-tab]').forEach((tab) => {
+      tab.addEventListener('click', () => activateView(tab.dataset.viewTab));
+    });
+
+    setToday();
+    loadBootstrap();
+  });
+
+  function loadBootstrap() {
+    setStatus('Loading');
+
+    google.script.run
+      .withSuccessHandler((bootstrap) => {
+        state.schema = bootstrap.schema;
+        state.dashboard = bootstrap.dashboard;
+        state.portfolios = bootstrap.portfolios || [];
+        renderSheetList(bootstrap.schema.sheets);
+        renderDashboard(bootstrap.dashboard);
+        renderPortfolios(state.portfolios);
+        setStatus(
+          bootstrap.portfolioError || `${bootstrap.schema.sheets.length} required sheets configured`,
+          Boolean(bootstrap.portfolioError)
+        );
+      })
+      .withFailureHandler(handleFailure)
+      .getAppBootstrap();
+  }
+
+  function initializeSheets() {
+    setStatus('Initializing');
+
+    google.script.run
+      .withSuccessHandler((result) => {
+        renderSheetList(result.sheets);
+        setStatus(formatInitStatus(result));
+        loadBootstrap();
+      })
+      .withFailureHandler(handleFailure)
+      .initializeLedger();
+  }
+
+  function savePortfolio(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const payload = formToObject(form);
+    const portfolioId = payload.portfolio_id;
+
+    if (payload.type === 'manual' && payload.initial_capital === '') {
+      delete payload.initial_capital;
+    }
+
+    const runner = google.script.run
+      .withSuccessHandler(() => {
+        resetPortfolioForm();
+        loadBootstrap();
+        setStatus('Portfolio saved');
+      })
+      .withFailureHandler(handleFailure);
+
+    if (portfolioId) {
+      delete payload.portfolio_id;
+      runner.updatePortfolioApi(portfolioId, payload);
+    } else {
+      runner.createPortfolioApi(payload);
+    }
+  }
+
+  function saveManualEntry(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const payload = formToObject(form);
+
+    if (!payload.portfolio_id) {
+      setStatus('Create a manual portfolio before saving an entry', true);
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(() => {
+        form.reset();
+        setToday();
+        loadBootstrap();
+        setStatus('Manual entry saved');
+      })
+      .withFailureHandler(handleFailure)
+      .addManualEntryApi(payload);
+  }
+
+  function archivePortfolio(portfolioId) {
+    const portfolio = state.portfolios.find((item) => item.portfolio_id === portfolioId);
+    const name = portfolio ? portfolio.name : 'this portfolio';
+
+    if (!confirm(`Archive ${name}?`)) {
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(() => {
+        loadBootstrap();
+        setStatus('Portfolio archived');
+      })
+      .withFailureHandler(handleFailure)
+      .archivePortfolioApi(portfolioId);
+  }
+
+  function editPortfolio(portfolioId) {
+    const portfolio = state.portfolios.find((item) => item.portfolio_id === portfolioId);
+    if (!portfolio) {
+      return;
+    }
+
+    const form = document.querySelector('[data-portfolio-form]');
+    fillForm(form, portfolio);
+    document.querySelector('[data-portfolio-form-title]').textContent = 'Edit portfolio';
+    activateView('portfolios');
+  }
+
+  function renderDashboard(summary) {
+    if (summary.has_mixed_currencies) {
+      document.querySelector('[data-dashboard-total]').textContent = formatCurrencyBreakdown(
+        summary.totals_by_currency
+      );
+      document.querySelector('[data-dashboard-trading]').textContent = formatCurrencyBreakdown(
+        summary.trading_by_currency
+      );
+      document.querySelector('[data-dashboard-manual]').textContent = formatCurrencyBreakdown(
+        summary.manual_by_currency
+      );
+      return;
+    }
+
+    const currency = summary.currency || 'USD';
+    document.querySelector('[data-dashboard-total]').textContent = formatMoney(summary.total_value, currency);
+    document.querySelector('[data-dashboard-trading]').textContent = formatMoney(summary.trading_value, currency);
+    document.querySelector('[data-dashboard-manual]').textContent = formatMoney(summary.manual_value, currency);
+  }
+
+  function renderPortfolios(portfolios) {
+    const list = document.querySelector('[data-portfolio-list]');
+    list.innerHTML = '';
+
+    if (portfolios.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'muted-copy';
+      empty.textContent = 'No portfolios';
+      list.append(empty);
+    }
+
+    portfolios.forEach((portfolio) => {
+      const card = document.createElement('article');
+      card.className = 'portfolio-card';
+
+      const main = document.createElement('div');
+      const title = document.createElement('h3');
+      title.textContent = portfolio.name;
+      const meta = document.createElement('p');
+      meta.textContent = `${portfolio.type} / ${portfolio.market} / ${portfolio.base_currency}`;
+      main.append(title, meta);
+
+      const value = document.createElement('strong');
+      value.textContent = formatMoney(portfolio.current_value, portfolio.current_currency || portfolio.base_currency);
+
+      const actions = document.createElement('div');
+      actions.className = 'row-actions';
+
+      const edit = document.createElement('button');
+      edit.className = 'secondary-button';
+      edit.type = 'button';
+      edit.textContent = 'Edit';
+      edit.addEventListener('click', () => editPortfolio(portfolio.portfolio_id));
+
+      const archive = document.createElement('button');
+      archive.className = 'danger-button';
+      archive.type = 'button';
+      archive.textContent = 'Archive';
+      archive.addEventListener('click', () => archivePortfolio(portfolio.portfolio_id));
+
+      actions.append(edit, archive);
+      card.append(main, value, actions);
+      list.append(card);
+    });
+
+    renderManualPortfolioSelect(portfolios);
+  }
+
+  function renderManualPortfolioSelect(portfolios) {
+    const select = document.querySelector('[data-manual-portfolio-select]');
+    const manualSubmit = document.querySelector('[data-manual-entry-submit]');
+    const previous = select.value;
+    select.innerHTML = '';
+
+    portfolios
+      .filter((portfolio) => portfolio.type === 'manual')
+      .forEach((portfolio) => {
+        const option = document.createElement('option');
+        option.value = portfolio.portfolio_id;
+        option.textContent = portfolio.name;
+        select.append(option);
+      });
+
+    if (previous && Array.from(select.options).some((option) => option.value === previous)) {
+      select.value = previous;
+    } else if (select.options.length > 0) {
+      select.selectedIndex = 0;
+    }
+
+    select.disabled = select.options.length === 0;
+    manualSubmit.disabled = select.options.length === 0;
+    manualSubmit.textContent = select.options.length === 0 ? 'No manual portfolios' : 'Save entry';
+  }
+
+  function renderSheetList(sheets) {
+    const list = document.querySelector('[data-sheet-list]');
+    list.innerHTML = '';
+
+    sheets.forEach((sheet) => {
+      const card = document.createElement('article');
+      card.className = 'sheet-card';
+
+      const title = document.createElement('h2');
+      title.textContent = sheet.name;
+
+      const meta = document.createElement('p');
+      meta.textContent = `${sheet.headers.length} columns`;
+
+      card.append(title, meta);
+      list.append(card);
+    });
+  }
+
+  function activateView(viewName) {
+    document.querySelectorAll('[data-view]').forEach((view) => {
+      view.classList.toggle('is-active', view.dataset.view === viewName);
+    });
+
+    document.querySelectorAll('[data-view-tab]').forEach((tab) => {
+      tab.classList.toggle('is-active', tab.dataset.viewTab === viewName);
+    });
+  }
+
+  function resetPortfolioForm() {
+    const form = document.querySelector('[data-portfolio-form]');
+    form.reset();
+    form.elements.base_currency.value = 'USD';
+    form.elements.commission_rate.value = '0';
+    form.elements.default_risk_pct.value = '0';
+    form.elements.portfolio_id.value = '';
+    document.querySelector('[data-portfolio-form-title]').textContent = 'New portfolio';
+  }
+
+  function setToday() {
+    const dateField = document.querySelector('[data-manual-entry-form] input[name="date"]');
+    dateField.value = getLocalDateInputValue();
+  }
+
+  function getLocalDateInputValue() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function formToObject(form) {
+    return Array.from(new FormData(form).entries()).reduce((values, entry) => {
+      values[entry[0]] = entry[1].trim();
+      return values;
+    }, {});
+  }
+
+  function fillForm(form, values) {
+    Array.from(form.elements).forEach((field) => {
+      if (!field.name || values[field.name] === undefined) {
+        return;
+      }
+
+      field.value = values[field.name];
+    });
+  }
+
+  function formatMoney(value, currency) {
+    return `${Number(value || 0).toLocaleString(undefined, {
+      maximumFractionDigits: 2,
+    })} ${currency}`;
+  }
+
+  function formatCurrencyBreakdown(values) {
+    const entries = Object.entries(values || {}).filter((entry) => Number(entry[1] || 0) !== 0);
+
+    if (entries.length === 0) {
+      return '0';
+    }
+
+    return entries.map((entry) => formatMoney(entry[1], entry[0])).join(' / ');
+  }
+
+  function formatInitStatus(result) {
+    if (result.created.length === 0 && result.updated.length === 0) {
+      return 'Sheet schema is current';
+    }
+
+    const created = result.created.length;
+    const updated = result.updated.length;
+    return `${created} created, ${updated} updated`;
+  }
+
+  function setStatus(message, isError = false) {
+    const status = document.querySelector('[data-status]');
+    status.textContent = message;
+    status.classList.toggle('is-error', isError);
+  }
+
+  function handleFailure(error) {
+    setStatus(error.message || 'Request failed', true);
+  }
+</script>

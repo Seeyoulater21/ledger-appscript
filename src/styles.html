@@ -1,0 +1,360 @@
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --surface-muted: #edf2f7;
+    --text: #172033;
+    --muted: #667085;
+    --line: #d9e0ea;
+    --accent: #0f766e;
+    --accent-strong: #115e59;
+    --danger: #b42318;
+    --radius: 8px;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, Roboto, Arial, sans-serif;
+  }
+
+  button {
+    border: 0;
+    font: inherit;
+  }
+
+  .app-shell {
+    width: min(100%, 1120px);
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  .topbar,
+  .status-panel,
+  .tabbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .topbar {
+    margin-bottom: 20px;
+  }
+
+  .eyebrow,
+  .panel-label {
+    margin: 0 0 4px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(1.7rem, 3vw, 2.4rem);
+    line-height: 1.1;
+  }
+
+  .icon-button {
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 1.2rem;
+  }
+
+  .status-panel {
+    min-height: 92px;
+    margin-bottom: 16px;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .status-text {
+    margin: 0;
+    color: var(--text);
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .primary-button {
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: #ffffff;
+    cursor: pointer;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .secondary-button,
+  .danger-button {
+    min-height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .danger-button {
+    border-color: #f3b8b3;
+    color: var(--danger);
+  }
+
+  .primary-button:hover,
+  .primary-button:focus {
+    background: var(--accent-strong);
+  }
+
+  .tabbar {
+    justify-content: flex-start;
+    margin: 0 -20px 18px;
+    padding: 0 20px 4px;
+    overflow-x: auto;
+  }
+
+  .tab {
+    min-height: 40px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--muted);
+    cursor: default;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .tab.is-active {
+    border-color: var(--accent);
+    color: var(--accent-strong);
+  }
+
+  .view {
+    display: none;
+  }
+
+  .view.is-active {
+    display: block;
+  }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .metric-card {
+    min-height: 96px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .metric-card strong {
+    display: block;
+    font-size: 1.35rem;
+    line-height: 1.2;
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+  }
+
+  .portfolio-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+    gap: 14px;
+    align-items: start;
+  }
+
+  .portfolio-panel {
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .section-heading,
+  .row-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .section-heading {
+    margin-bottom: 14px;
+  }
+
+  .section-heading h2 {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+
+  .portfolio-list,
+  .stack-form {
+    display: grid;
+    gap: 12px;
+  }
+
+  .stack-form + .stack-form {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+
+  .portfolio-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: start;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg);
+  }
+
+  .portfolio-card h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+  }
+
+  .portfolio-card p,
+  .muted-copy,
+  .empty-state p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .portfolio-card strong {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .row-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  label {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  input,
+  select {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: #ffffff;
+    color: var(--text);
+    font: inherit;
+    font-weight: 500;
+    padding: 0 10px;
+  }
+
+  select:disabled {
+    background: var(--surface-muted);
+    color: var(--muted);
+  }
+
+  .sheet-card {
+    min-height: 96px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .sheet-card h2 {
+    margin: 0 0 8px;
+    font-size: 1rem;
+  }
+
+  .sheet-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .is-error {
+    color: var(--danger);
+  }
+
+  @media (max-width: 640px) {
+    .app-shell {
+      padding: 16px;
+    }
+
+    .status-panel {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .primary-button {
+      width: 100%;
+    }
+
+    .portfolio-layout,
+    .form-grid,
+    .portfolio-card {
+      grid-template-columns: 1fr;
+    }
+
+    .portfolio-card strong {
+      text-align: left;
+    }
+
+    .row-actions {
+      justify-content: stretch;
+    }
+
+    .row-actions button {
+      flex: 1;
+    }
+
+    .tabbar {
+      margin-right: -16px;
+      margin-left: -16px;
+      padding-right: 16px;
+      padding-left: 16px;
+    }
+  }
+</style>
