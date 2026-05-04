@@ -17,11 +17,14 @@ Run `initRequiredSheets()` from Apps Script, or click `Initialize sheets` in the
 The initializer:
 
 - creates missing required tabs
-- writes the expected header row
+- writes the expected header row for new or empty tabs
 - freezes the first row
 - seeds default Settings rows when Settings only has headers
 
-It does not delete data and does not hard reset existing tabs.
+It does not delete data and does not hard reset existing tabs. If an existing
+required tab already has row data and its header row does not match the required
+schema, initialization stops with an error so the user can move existing data or
+update the headers manually.
 
 ## Required Tabs
 

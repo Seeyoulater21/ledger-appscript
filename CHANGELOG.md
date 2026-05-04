@@ -48,7 +48,7 @@ This project follows a simple human-readable changelog format.
 
 ### Fixed
 
-- N/A
+- Prevented sheet initialization from overwriting row 1 data on existing required-named tabs with mismatched headers.
 
 ### Security
 

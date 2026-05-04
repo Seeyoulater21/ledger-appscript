@@ -24,13 +24,15 @@ function initRequiredSheets() {
 
   REQUIRED_SHEETS.forEach(function (definition) {
     var sheet = spreadsheet.getSheetByName(definition.name);
+    var isNewSheet = false;
 
     if (!sheet) {
       sheet = spreadsheet.insertSheet(definition.name);
+      isNewSheet = true;
       created.push(definition.name);
     }
 
-    if (ensureHeaderRow_(sheet, definition.headers)) {
+    if (ensureHeaderRow_(sheet, definition.headers, isNewSheet)) {
       updated.push(definition.name);
     }
 
@@ -57,7 +59,7 @@ function getSheetSchema() {
   };
 }
 
-function ensureHeaderRow_(sheet, headers) {
+function ensureHeaderRow_(sheet, headers, isNewSheet) {
   var existingValues = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
   var hasSameHeaders = headers.every(function (header, index) {
     return existingValues[index] === header;
@@ -65,6 +67,13 @@ function ensureHeaderRow_(sheet, headers) {
 
   if (hasSameHeaders) {
     return false;
+  }
+
+  if (!isNewSheet && sheet.getLastRow() > 0) {
+    throw new Error(
+      sheet.getName() +
+        ' header row does not match the required schema. Move existing data or update the header row manually before initializing.'
+    );
   }
 
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
