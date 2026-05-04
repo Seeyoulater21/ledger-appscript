@@ -18,6 +18,10 @@ function getAppBootstrap() {
     openPositions: [],
     closedPositions: [],
     tradingAnalytics: getEmptyTradingAnalytics_(),
+    holdings: [],
+    holdingsSummary: getEmptyHoldingsSummary_(),
+    priceCache: [],
+    watchlist: [],
   };
 
   try {
@@ -33,6 +37,15 @@ function getAppBootstrap() {
     bootstrap.tradingAnalytics = getTradingAnalytics();
   } catch (error) {
     bootstrap.positionError = error.message;
+  }
+
+  try {
+    bootstrap.holdings = listHoldings();
+    bootstrap.holdingsSummary = getHoldingsSummary();
+    bootstrap.priceCache = listPriceCache();
+    bootstrap.watchlist = listWatchlist();
+  } catch (error) {
+    bootstrap.holdingError = error.message;
   }
 
   return bootstrap;
@@ -66,6 +79,20 @@ function getEmptyTradingAnalytics_() {
     largest_win: '',
     largest_loss: '',
     average_r_multiple: '',
+  };
+}
+
+function getEmptyHoldingsSummary_() {
+  return {
+    active_count: 0,
+    total_cost_basis: 0,
+    total_current_value: 0,
+    total_unrealized_pnl: 0,
+    currency: LEDGER_APP.defaultCurrency,
+    has_mixed_currencies: false,
+    cost_basis_by_currency: {},
+    current_value_by_currency: {},
+    unrealized_pnl_by_currency: {},
   };
 }
 
@@ -119,4 +146,44 @@ function scaleOutPositionApi(positionId, payload) {
 
 function getTradingAnalyticsApi(options) {
   return getTradingAnalytics(options || {});
+}
+
+function listHoldingsApi(options) {
+  return listHoldings(options || {});
+}
+
+function createHoldingApi(payload) {
+  return createHolding(payload || {});
+}
+
+function updateHoldingApi(holdingId, payload) {
+  return updateHolding(holdingId, payload || {});
+}
+
+function archiveHoldingApi(holdingId) {
+  return archiveHolding(holdingId);
+}
+
+function getHoldingsSummaryApi() {
+  return getHoldingsSummary();
+}
+
+function listPriceCacheApi(options) {
+  return listPriceCache(options || {});
+}
+
+function upsertManualPriceApi(payload) {
+  return upsertManualPrice(payload || {});
+}
+
+function listWatchlistApi() {
+  return listWatchlist();
+}
+
+function addWatchlistSymbolApi(payload) {
+  return addWatchlistSymbol(payload || {});
+}
+
+function removeWatchlistSymbolApi(symbol, source) {
+  return removeWatchlistSymbol(symbol, source || 'manual');
 }

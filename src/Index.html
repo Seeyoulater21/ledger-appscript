@@ -378,9 +378,186 @@
         </div>
       </section>
 
-      <section class="view empty-state" data-view="holdings">
-        <h2>Holdings</h2>
-        <p>Phase 4</p>
+      <section class="view" data-view="holdings">
+        <div class="metric-grid" data-holdings-summary>
+          <article class="metric-card">
+            <p class="panel-label">Holdings value</p>
+            <strong data-holdings-current-value>0 USD</strong>
+          </article>
+          <article class="metric-card">
+            <p class="panel-label">Cost basis</p>
+            <strong data-holdings-cost-basis>0 USD</strong>
+          </article>
+          <article class="metric-card">
+            <p class="panel-label">Unrealized PNL</p>
+            <strong data-holdings-pnl>0</strong>
+          </article>
+        </div>
+
+        <div class="holding-layout">
+          <section class="portfolio-panel">
+            <div class="section-heading">
+              <h2>Holdings</h2>
+              <button class="secondary-button" type="button" data-action="new-holding">New</button>
+            </div>
+            <div class="portfolio-list" data-holding-list></div>
+
+            <div class="section-heading section-heading-spaced">
+              <h2>Manual price cache</h2>
+            </div>
+            <div class="position-list" data-price-cache-list></div>
+          </section>
+
+          <section class="portfolio-panel">
+            <form class="stack-form" data-holding-form>
+              <input type="hidden" name="holding_id">
+              <div class="section-heading">
+                <h2 data-holding-form-title>New holding</h2>
+                <button class="secondary-button" type="button" data-action="clear-holding-form">Clear</button>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Asset type
+                  <select name="asset_type" required>
+                    <option value="crypto">Crypto</option>
+                    <option value="thai_stock">Thai stock</option>
+                    <option value="us_stock">US stock</option>
+                    <option value="cash">Cash</option>
+                    <option value="gold">Gold</option>
+                    <option value="fund">Fund</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </label>
+
+                <label>
+                  Symbol
+                  <input name="symbol" type="text" autocomplete="off" required>
+                </label>
+              </div>
+
+              <label>
+                Name
+                <input name="name" type="text" autocomplete="off">
+              </label>
+
+              <div class="form-grid">
+                <label>
+                  Amount
+                  <input name="amount" type="number" inputmode="decimal" step="0.00000001" required>
+                </label>
+
+                <label>
+                  Average cost
+                  <input name="avg_cost" type="number" inputmode="decimal" step="0.00000001" value="0">
+                </label>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Currency
+                  <input name="cost_currency" type="text" value="USD" maxlength="8" required>
+                </label>
+
+                <label>
+                  Price source
+                  <select name="price_source">
+                    <option value="manual">Manual</option>
+                    <option value="custom">Custom</option>
+                    <option value="fallback">Fallback</option>
+                    <option value="binance">Binance</option>
+                    <option value="bitkub">Bitkub</option>
+                    <option value="set">SET</option>
+                    <option value="gold">Gold</option>
+                    <option value="fx">FX</option>
+                  </select>
+                </label>
+              </div>
+
+              <label>
+                Custom current price
+                <input name="custom_current_price" type="number" inputmode="decimal" step="0.00000001">
+              </label>
+
+              <label>
+                Note
+                <input name="note" type="text" autocomplete="off">
+              </label>
+
+              <button class="primary-button" type="submit">Save holding</button>
+            </form>
+
+            <form class="stack-form" data-price-cache-form>
+              <div class="section-heading">
+                <h2>Manual price</h2>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Symbol
+                  <input name="symbol" type="text" autocomplete="off" required>
+                </label>
+
+                <label>
+                  Source
+                  <select name="source">
+                    <option value="manual">Manual</option>
+                    <option value="custom">Custom</option>
+                    <option value="fallback">Fallback</option>
+                    <option value="binance">Binance</option>
+                    <option value="bitkub">Bitkub</option>
+                    <option value="set">SET</option>
+                    <option value="gold">Gold</option>
+                    <option value="fx">FX</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Price
+                  <input name="price" type="number" inputmode="decimal" step="0.00000001" required>
+                </label>
+
+                <label>
+                  Currency
+                  <input name="currency" type="text" value="USD" maxlength="8" required>
+                </label>
+              </div>
+
+              <button class="primary-button" type="submit">Save price</button>
+            </form>
+
+            <form class="stack-form" data-watchlist-form>
+              <div class="section-heading">
+                <h2>Watchlist</h2>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Symbol
+                  <input name="symbol" type="text" autocomplete="off" required>
+                </label>
+
+                <label>
+                  Source
+                  <select name="source">
+                    <option value="manual">Manual</option>
+                    <option value="binance">Binance</option>
+                    <option value="bitkub">Bitkub</option>
+                    <option value="set">SET</option>
+                    <option value="gold">Gold</option>
+                    <option value="fx">FX</option>
+                  </select>
+                </label>
+              </div>
+
+              <button class="primary-button" type="submit">Add symbol</button>
+            </form>
+
+            <div class="watchlist-list" data-watchlist-list></div>
+          </section>
+        </div>
       </section>
     </main>
 

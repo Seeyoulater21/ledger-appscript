@@ -518,6 +518,180 @@ test('position service rejects negative exit fees before realized PNL is written
   assert.equal(context.listClosedPositions().length, 0);
 });
 
+test('holding service creates, updates, archives, values holdings, and handles manual prices', () => {
+  const spreadsheet = new FakeSpreadsheet();
+  const context = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+    },
+    Utilities: {
+      getUuid: createUuidSequence(),
+    },
+  });
+
+  context.initRequiredSheets();
+
+  assert.throws(
+    () =>
+      context.createHolding({
+        asset_type: 'crypto',
+        symbol: 'BTC',
+        amount: 1,
+        avg_cost: -1,
+        cost_currency: 'USD',
+      }),
+    /avg_cost must be non-negative/
+  );
+
+  const btc = context.createHolding({
+    asset_type: 'crypto',
+    symbol: 'btc',
+    name: 'Bitcoin',
+    amount: 0.5,
+    avg_cost: 50000,
+    cost_currency: 'usd',
+    price_source: 'manual',
+    note: 'cold wallet',
+  });
+
+  context.upsertManualPrice({
+    symbol: 'BTC',
+    source: 'manual',
+    price: 60000,
+    currency: 'USD',
+  });
+
+  const art = context.createHolding({
+    asset_type: 'custom',
+    symbol: 'ART1',
+    name: 'Private art',
+    amount: 2,
+    avg_cost: 100,
+    cost_currency: 'USD',
+  });
+
+  const summary = context.getHoldingsSummary();
+  assert.equal(summary.active_count, 2);
+  assert.equal(summary.total_cost_basis, 25200);
+  assert.equal(summary.total_current_value, 30200);
+  assert.equal(summary.total_unrealized_pnl, 5000);
+  assert.equal(summary.currency, 'USD');
+
+  const valued = context.listHoldings();
+  assert.equal(valued[0].symbol, 'BTC');
+  assert.equal(valued[0].current_price, 60000);
+  assert.equal(valued[0].current_value, 30000);
+  assert.equal(valued[0].unrealized_pnl, 5000);
+  assert.equal(valued[0].price_label, 'manual');
+  assert.equal(valued[0].allocation, 30000 / 30200);
+  assert.equal(valued[1].symbol, 'ART1');
+  assert.equal(valued[1].current_price, 100);
+  assert.equal(valued[1].price_label, 'fallback');
+
+  const updated = context.updateHolding(btc.holding_id, {
+    amount: 0.25,
+    custom_current_price: 61000,
+    note: 'trimmed',
+  });
+  assert.equal(updated.amount, 0.25);
+  assert.equal(updated.custom_current_price, 61000);
+  assert.equal(updated.created_at, btc.created_at);
+
+  context.archiveHolding(art.holding_id);
+  assert.deepEqual(
+    context.listHoldings().map((holding) => holding.symbol),
+    ['BTC']
+  );
+  assert.equal(context.listHoldings({ includeArchived: true }).length, 2);
+});
+
+test('price cache and watchlist support manual MVP workflows gracefully', () => {
+  const spreadsheet = new FakeSpreadsheet();
+  const context = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+    },
+    Utilities: {
+      getUuid: createUuidSequence(),
+    },
+  });
+
+  context.initRequiredSheets();
+
+  assert.equal(context.getCachedPrice('UNKNOWN', 'manual'), null);
+
+  const price = context.upsertManualPrice({
+    symbol: 'eth',
+    source: 'manual',
+    price: 3000,
+    currency: 'usd',
+  });
+  assert.equal(price.symbol, 'ETH');
+  assert.equal(price.price, 3000);
+  assert.equal(price.currency, 'USD');
+  assert.equal(price.is_stale, false);
+  assert.equal(context.listPriceCache().length, 1);
+
+  const updated = context.upsertManualPrice({
+    symbol: 'ETH',
+    source: 'manual',
+    price: 3100,
+    currency: 'USD',
+    is_stale: true,
+  });
+  assert.equal(updated.price, 3100);
+  assert.equal(updated.is_stale, true);
+  assert.equal(context.listPriceCache().length, 1);
+
+  context.addWatchlistSymbol({ symbol: 'SOL', source: 'manual' });
+  context.addWatchlistSymbol({ symbol: 'ETH', source: 'manual' });
+  context.addWatchlistSymbol({ symbol: 'SOL', source: 'manual' });
+  assert.deepEqual(
+    context.listWatchlist().map((item) => item.symbol),
+    ['SOL', 'ETH']
+  );
+
+  context.removeWatchlistSymbol('SOL', 'manual');
+  assert.deepEqual(
+    context.listWatchlist().map((item) => item.symbol),
+    ['ETH']
+  );
+});
+
+test('holding API and UI expose issue #4 workflows', () => {
+  const code = read('src/Code.gs');
+  const index = read('src/Index.html');
+  const client = read('src/client.html');
+
+  for (const fn of [
+    'listHoldingsApi',
+    'createHoldingApi',
+    'updateHoldingApi',
+    'archiveHoldingApi',
+    'getHoldingsSummaryApi',
+    'listPriceCacheApi',
+    'upsertManualPriceApi',
+    'listWatchlistApi',
+    'addWatchlistSymbolApi',
+    'removeWatchlistSymbolApi',
+  ]) {
+    assert.match(code, new RegExp(`function\\s+${fn}\\s*\\(`));
+  }
+
+  assert.match(index, /data-holding-form/);
+  assert.match(index, /data-holding-list/);
+  assert.match(index, /data-holdings-summary/);
+  assert.match(index, /data-price-cache-form/);
+  assert.match(index, /data-watchlist-form/);
+  assert.match(index, /data-watchlist-list/);
+  assert.match(client, /saveHolding/);
+  assert.match(client, /archiveHolding/);
+  assert.match(client, /saveManualPrice/);
+  assert.match(client, /addWatchlistSymbol/);
+  assert.match(client, /removeWatchlistSymbol/);
+  assert.match(client, /watchedSymbols/);
+});
+
 test('position API and UI expose issue #3 workflows', () => {
   const code = read('src/Code.gs');
   const index = read('src/Index.html');
@@ -582,6 +756,8 @@ function loadAppsScript(globals = {}) {
   vm.runInContext(read('src/PortfolioService.gs'), context);
   vm.runInContext(read('src/CalcService.gs'), context);
   vm.runInContext(read('src/PositionService.gs'), context);
+  vm.runInContext(read('src/PriceService.gs'), context);
+  vm.runInContext(read('src/HoldingService.gs'), context);
   return context;
 }
 
