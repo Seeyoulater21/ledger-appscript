@@ -95,7 +95,13 @@ function addWatchlistSymbol(input) {
 
   var existing = findWatchlistRow_(item.symbol, item.source);
   if (existing) {
-    return normalizeWatchlistItem_(existing.row);
+    var existingItem = normalizeWatchlistItem_(existing.row);
+    if (existingItem.source === 'removed') {
+      writeRow_('Watchlist', existing.rowNumber, item);
+      return item;
+    }
+
+    return existingItem;
   }
 
   appendRow_('Watchlist', item);
@@ -179,7 +185,17 @@ function findWatchlistRow_(symbol, source) {
   for (var index = 0; index < rows.length; index += 1) {
     if (
       normalizeSymbol_(rows[index].symbol) === normalizedSymbol &&
-      normalizePriceSource_(rows[index].source || 'manual') === normalizedSource
+      normalizeWatchlistSource_(rows[index].source || 'manual') === normalizedSource
+    ) {
+      return {
+        row: rows[index],
+        rowNumber: rows[index]._rowNumber,
+      };
+    }
+
+    if (
+      normalizeSymbol_(rows[index].symbol) === normalizedSymbol &&
+      normalizeWatchlistSource_(rows[index].source || 'manual') === 'removed'
     ) {
       return {
         row: rows[index],

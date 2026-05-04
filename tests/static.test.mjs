@@ -656,6 +656,69 @@ test('price cache and watchlist support manual MVP workflows gracefully', () => 
     context.listWatchlist().map((item) => item.symbol),
     ['ETH']
   );
+
+  context.addWatchlistSymbol({ symbol: 'SOL', source: 'manual' });
+  assert.deepEqual(
+    context.listWatchlist().map((item) => item.symbol),
+    ['SOL', 'ETH']
+  );
+});
+
+test('non-custom holdings without same-currency prices surface missing price data', () => {
+  const spreadsheet = new FakeSpreadsheet();
+  const context = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+    },
+    Utilities: {
+      getUuid: createUuidSequence(),
+    },
+  });
+
+  context.initRequiredSheets();
+  context.createHolding({
+    asset_type: 'crypto',
+    symbol: 'SOL',
+    name: 'Solana',
+    amount: 10,
+    avg_cost: 100,
+    cost_currency: 'USD',
+    price_source: 'manual',
+  });
+  context.createHolding({
+    asset_type: 'thai_stock',
+    symbol: 'AOT',
+    name: 'Airports of Thailand',
+    amount: 100,
+    avg_cost: 60,
+    cost_currency: 'USD',
+    price_source: 'manual',
+  });
+  context.upsertManualPrice({
+    symbol: 'AOT',
+    source: 'manual',
+    price: 70,
+    currency: 'THB',
+  });
+
+  const holdings = context.listHoldings();
+  assert.equal(holdings[0].symbol, 'SOL');
+  assert.equal(holdings[0].current_price, '');
+  assert.equal(holdings[0].current_value, '');
+  assert.equal(holdings[0].unrealized_pnl, '');
+  assert.equal(holdings[0].price_label, 'missing');
+  assert.equal(holdings[1].symbol, 'AOT');
+  assert.equal(holdings[1].current_price, '');
+  assert.equal(holdings[1].current_value, '');
+  assert.equal(holdings[1].unrealized_pnl, '');
+  assert.equal(holdings[1].price_label, 'currency_mismatch');
+
+  const summary = context.getHoldingsSummary();
+  assert.equal(summary.active_count, 2);
+  assert.equal(summary.total_cost_basis, 7000);
+  assert.equal(summary.total_current_value, 0);
+  assert.equal(summary.total_unrealized_pnl, '');
+  assert.equal(summary.currency, 'USD');
 });
 
 test('holding API and UI expose issue #4 workflows', () => {

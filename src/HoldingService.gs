@@ -73,10 +73,17 @@ function getHoldingsSummary() {
       totals.active_count += 1;
       totals.cost_basis_by_currency[currency] =
         Number(totals.cost_basis_by_currency[currency] || 0) + Number(holding.cost_basis || 0);
-      totals.current_value_by_currency[currency] =
-        Number(totals.current_value_by_currency[currency] || 0) + Number(holding.current_value || 0);
-      totals.unrealized_pnl_by_currency[currency] =
-        Number(totals.unrealized_pnl_by_currency[currency] || 0) + Number(holding.unrealized_pnl || 0);
+
+      if (holding.current_value !== '') {
+        totals.current_value_by_currency[currency] =
+          Number(totals.current_value_by_currency[currency] || 0) + Number(holding.current_value || 0);
+      }
+
+      if (holding.unrealized_pnl !== '') {
+        totals.unrealized_pnl_by_currency[currency] =
+          Number(totals.unrealized_pnl_by_currency[currency] || 0) + Number(holding.unrealized_pnl || 0);
+      }
+
       return totals;
     },
     {
@@ -185,6 +192,15 @@ function resolveHoldingPrice_(holding) {
 
   var cached = getCachedPrice(holding.symbol, holding.price_source);
   if (cached && cached.price !== '') {
+    if (normalizeCurrency_(cached.currency) !== normalizeCurrency_(holding.cost_currency)) {
+      return {
+        price: '',
+        currency: holding.cost_currency,
+        label: 'currency_mismatch',
+        updated_at: cached.updated_at,
+      };
+    }
+
     return {
       price: Number(cached.price),
       currency: cached.currency || holding.cost_currency,
@@ -193,7 +209,7 @@ function resolveHoldingPrice_(holding) {
     };
   }
 
-  if (holding.asset_type === 'custom' || holding.avg_cost !== '') {
+  if (holding.asset_type === 'custom') {
     return {
       price: Number(holding.avg_cost || 0),
       currency: holding.cost_currency,
@@ -211,7 +227,7 @@ function resolveHoldingPrice_(holding) {
 }
 
 function finalizeHoldingsSummary_(summary) {
-  var currencies = Object.keys(summary.current_value_by_currency);
+  var currencies = Object.keys(summary.cost_basis_by_currency);
 
   if (currencies.length === 0) {
     return summary;
@@ -222,7 +238,10 @@ function finalizeHoldingsSummary_(summary) {
     summary.currency = currency;
     summary.total_cost_basis = roundLedgerNumber_(summary.cost_basis_by_currency[currency] || 0);
     summary.total_current_value = roundLedgerNumber_(summary.current_value_by_currency[currency] || 0);
-    summary.total_unrealized_pnl = roundLedgerNumber_(summary.unrealized_pnl_by_currency[currency] || 0);
+    summary.total_unrealized_pnl =
+      Object.prototype.hasOwnProperty.call(summary.unrealized_pnl_by_currency, currency)
+        ? roundLedgerNumber_(summary.unrealized_pnl_by_currency[currency] || 0)
+        : '';
     summary.has_mixed_currencies = false;
     return summary;
   }
