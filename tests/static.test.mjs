@@ -228,6 +228,324 @@ test('portfolio API and UI expose issue #2 workflows', () => {
   assert.match(client, /manualSubmit\.disabled\s*=\s*select\.options\.length\s*===\s*0/);
 });
 
+test('position service adds, validates, closes, and analyzes trading positions', () => {
+  const spreadsheet = new FakeSpreadsheet();
+  const context = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+    },
+    Utilities: {
+      getUuid: createUuidSequence(),
+    },
+  });
+
+  context.initRequiredSheets();
+  const trading = context.createPortfolio({
+    name: 'Crypto Trading',
+    type: 'trading',
+    market: 'crypto',
+    base_currency: 'USD',
+    initial_capital: 10000,
+    risk_mode: 'percent',
+    default_risk_pct: 1,
+  });
+  const manual = context.createPortfolio({
+    name: 'Manual Stack',
+    type: 'manual',
+    market: 'custom',
+    base_currency: 'USD',
+  });
+
+  assert.throws(
+    () =>
+      context.createPosition({
+        portfolio_id: manual.portfolio_id,
+        symbol: 'BTC',
+        direction: 'long',
+        entry_date: '2026-05-04',
+        entry_price: 100,
+        qty: 1,
+        stop_loss: 90,
+      }),
+    /trading portfolio/
+  );
+  assert.throws(
+    () =>
+      context.createPosition({
+        portfolio_id: trading.portfolio_id,
+        symbol: 'BTC',
+        direction: 'long',
+        entry_date: '2026-05-04',
+        entry_price: 100,
+        qty: 1,
+        stop_loss: 105,
+      }),
+    /Long stop loss/
+  );
+
+  const position = context.createPosition({
+    portfolio_id: trading.portfolio_id,
+    symbol: 'BTC',
+    direction: 'long',
+    entry_date: '2026-05-04',
+    entry_price: 100,
+    qty: 10,
+    stop_loss: 90,
+    note: 'breakout',
+  });
+
+  assert.equal(position.status, 'open');
+  assert.equal(position.position_size, 1000);
+  assert.equal(position.fee_entry, 1);
+  assert.equal(context.listOpenPositions().length, 1);
+
+  const closed = context.closePosition(position.position_id, {
+    exit_date: '2026-05-05',
+    exit_price: 110,
+    fee_exit: 2,
+    note: 'target hit',
+  });
+
+  assert.equal(closed.status, 'closed');
+  assert.equal(closed.realized_pnl, 97);
+  assert.equal(context.listOpenPositions().length, 0);
+  assert.equal(context.listClosedPositions().length, 1);
+
+  const analytics = context.getTradingAnalytics();
+  assert.equal(analytics.closed_trade_count, 1);
+  assert.equal(analytics.win_rate, 1);
+  assert.equal(analytics.avg_win, 97);
+  assert.equal(analytics.profit_factor, '');
+  assert.equal(analytics.average_r_multiple, 0.97);
+});
+
+test('position service supports risk sizing and partial scale-out records', () => {
+  const spreadsheet = new FakeSpreadsheet();
+  const context = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+    },
+    Utilities: {
+      getUuid: createUuidSequence(),
+    },
+  });
+
+  context.initRequiredSheets();
+  const trading = context.createPortfolio({
+    name: 'Risk Trading',
+    type: 'trading',
+    market: 'us_stock',
+    base_currency: 'USD',
+    initial_capital: 20000,
+    commission_rate: 0.001,
+    risk_mode: 'percent',
+    default_risk_pct: 2,
+  });
+
+  const sized = context.createPosition({
+    portfolio_id: trading.portfolio_id,
+    symbol: 'AAPL',
+    direction: 'long',
+    entry_date: '2026-05-04',
+    entry_price: 100,
+    stop_loss: 95,
+    sizing_mode: 'fixed_risk_percent',
+    risk_percent: 2,
+  });
+
+  assert.equal(sized.position_size, 8000);
+  assert.equal(sized.qty, 80);
+  assert.equal(sized.fee_entry, 8);
+
+  const partial = context.scaleOutPosition(sized.position_id, {
+    exit_date: '2026-05-05',
+    exit_qty: 20,
+    exit_price: 110,
+    fee_exit: 2,
+    note: 'trim',
+  });
+
+  assert.equal(partial.status, 'closed');
+  assert.equal(partial.parent_position_id, sized.position_id);
+  assert.equal(partial.qty, 20);
+  assert.equal(partial.realized_pnl, 196);
+
+  const remaining = context.listOpenPositions()[0];
+  assert.equal(remaining.qty, 60);
+  assert.equal(remaining.position_size, 6000);
+  assert.equal(remaining.fee_entry, 6);
+
+  assert.throws(
+    () =>
+      context.scaleOutPosition(remaining.position_id, {
+        exit_date: '2026-05-06',
+        exit_qty: 60,
+        exit_price: 111,
+      }),
+    /less than current qty/
+  );
+});
+
+test('position service derives manual position size and rejects invalid numeric inputs', () => {
+  const spreadsheet = new FakeSpreadsheet();
+  const context = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+    },
+    Utilities: {
+      getUuid: createUuidSequence(),
+    },
+  });
+
+  context.initRequiredSheets();
+  const trading = context.createPortfolio({
+    name: 'Validation Trading',
+    type: 'trading',
+    market: 'crypto',
+    base_currency: 'USD',
+    initial_capital: 10000,
+    risk_mode: 'none',
+    default_risk_pct: 0,
+  });
+
+  const position = context.createPosition({
+    portfolio_id: trading.portfolio_id,
+    symbol: 'ETH',
+    direction: 'long',
+    entry_date: '2026-05-04',
+    entry_price: 100,
+    qty: 10,
+    position_size: 1,
+    stop_loss: 90,
+  });
+
+  assert.equal(position.position_size, 1000);
+  assert.equal(position.fee_entry, 1);
+
+  assert.throws(
+    () =>
+      context.createPosition({
+        portfolio_id: trading.portfolio_id,
+        symbol: 'ETH',
+        direction: 'long',
+        entry_price: 100,
+        qty: 1,
+        stop_loss: -1,
+      }),
+    /stop_loss must be positive/
+  );
+
+  assert.throws(
+    () =>
+      context.createPosition({
+        portfolio_id: trading.portfolio_id,
+        symbol: 'ETH',
+        direction: 'long',
+        entry_price: 100,
+        qty: 1,
+        stop_loss: 'abc',
+      }),
+    /stop_loss must be a number/
+  );
+
+  assert.throws(
+    () =>
+      context.createPosition({
+        portfolio_id: trading.portfolio_id,
+        symbol: 'ETH',
+        direction: 'long',
+        entry_price: 100,
+        qty: 1,
+        stop_loss: 90,
+        fee_entry: -1,
+      }),
+    /fee_entry must be non-negative/
+  );
+});
+
+test('position service rejects negative exit fees before realized PNL is written', () => {
+  const spreadsheet = new FakeSpreadsheet();
+  const context = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+    },
+    Utilities: {
+      getUuid: createUuidSequence(),
+    },
+  });
+
+  context.initRequiredSheets();
+  const trading = context.createPortfolio({
+    name: 'Fee Validation',
+    type: 'trading',
+    market: 'crypto',
+    base_currency: 'USD',
+    initial_capital: 10000,
+    risk_mode: 'none',
+    default_risk_pct: 0,
+  });
+  const position = context.createPosition({
+    portfolio_id: trading.portfolio_id,
+    symbol: 'BTC',
+    direction: 'long',
+    entry_price: 100,
+    qty: 10,
+    stop_loss: 90,
+  });
+
+  assert.throws(
+    () =>
+      context.closePosition(position.position_id, {
+        exit_price: 110,
+        fee_exit: -5,
+      }),
+    /fee_exit must be non-negative/
+  );
+
+  assert.throws(
+    () =>
+      context.scaleOutPosition(position.position_id, {
+        exit_qty: 2,
+        exit_price: 110,
+        fee_exit: -1,
+      }),
+    /fee_exit must be non-negative/
+  );
+
+  const stillOpen = context.listOpenPositions()[0];
+  assert.equal(stillOpen.status, 'open');
+  assert.equal(stillOpen.qty, 10);
+  assert.equal(context.listClosedPositions().length, 0);
+});
+
+test('position API and UI expose issue #3 workflows', () => {
+  const code = read('src/Code.gs');
+  const index = read('src/Index.html');
+  const client = read('src/client.html');
+
+  for (const fn of [
+    'listOpenPositionsApi',
+    'listClosedPositionsApi',
+    'createPositionApi',
+    'closePositionApi',
+    'scaleOutPositionApi',
+    'getTradingAnalyticsApi',
+  ]) {
+    assert.match(code, new RegExp(`function\\s+${fn}\\s*\\(`));
+  }
+
+  assert.match(index, /data-position-form/);
+  assert.match(index, /data-open-position-list/);
+  assert.match(index, /data-closed-position-list/);
+  assert.match(index, /data-position-close-form/);
+  assert.match(index, /data-position-scale-form/);
+  assert.match(index, /data-trading-analytics/);
+  assert.match(client, /savePosition/);
+  assert.match(client, /closePosition/);
+  assert.match(client, /scaleOutPosition/);
+  assert.match(client, /renderTradingAnalytics/);
+});
+
 test('sheet initialization refuses to overwrite row 1 data on existing tabs', () => {
   const existingSheet = new FakeSheet('Settings', [['personal', 'data', 'keep me']]);
   const context = loadAppsScript({
@@ -262,6 +580,8 @@ function loadAppsScript(globals = {}) {
   vm.runInContext(read('src/Config.gs'), context);
   vm.runInContext(read('src/SheetService.gs'), context);
   vm.runInContext(read('src/PortfolioService.gs'), context);
+  vm.runInContext(read('src/CalcService.gs'), context);
+  vm.runInContext(read('src/PositionService.gs'), context);
   return context;
 }
 

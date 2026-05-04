@@ -15,6 +15,9 @@ function getAppBootstrap() {
     schema: getSheetSchema(),
     dashboard: getEmptyPortfolioSummary_(),
     portfolios: [],
+    openPositions: [],
+    closedPositions: [],
+    tradingAnalytics: getEmptyTradingAnalytics_(),
   };
 
   try {
@@ -22,6 +25,14 @@ function getAppBootstrap() {
     bootstrap.portfolios = listPortfolios();
   } catch (error) {
     bootstrap.portfolioError = error.message;
+  }
+
+  try {
+    bootstrap.openPositions = listOpenPositions();
+    bootstrap.closedPositions = listClosedPositions();
+    bootstrap.tradingAnalytics = getTradingAnalytics();
+  } catch (error) {
+    bootstrap.positionError = error.message;
   }
 
   return bootstrap;
@@ -40,6 +51,21 @@ function getEmptyPortfolioSummary_() {
     totals_by_currency: {},
     trading_by_currency: {},
     manual_by_currency: {},
+  };
+}
+
+function getEmptyTradingAnalytics_() {
+  return {
+    closed_trade_count: 0,
+    win_rate: 0,
+    avg_win: '',
+    avg_loss: '',
+    expectancy: 0,
+    profit_factor: '',
+    max_consecutive_loss: 0,
+    largest_win: '',
+    largest_loss: '',
+    average_r_multiple: '',
   };
 }
 
@@ -69,4 +95,28 @@ function archivePortfolioApi(portfolioId) {
 
 function addManualEntryApi(payload) {
   return addManualEntry(payload || {});
+}
+
+function listOpenPositionsApi(options) {
+  return listOpenPositions(options || {});
+}
+
+function listClosedPositionsApi(options) {
+  return listClosedPositions(options || {});
+}
+
+function createPositionApi(payload) {
+  return createPosition(payload || {});
+}
+
+function closePositionApi(positionId, payload) {
+  return closePosition(positionId, payload || {});
+}
+
+function scaleOutPositionApi(positionId, payload) {
+  return scaleOutPosition(positionId, payload || {});
+}
+
+function getTradingAnalyticsApi(options) {
+  return getTradingAnalytics(options || {});
 }

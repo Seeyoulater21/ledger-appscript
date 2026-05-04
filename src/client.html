@@ -3,6 +3,9 @@
     schema: null,
     dashboard: null,
     portfolios: [],
+    openPositions: [],
+    closedPositions: [],
+    tradingAnalytics: null,
   };
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -14,6 +17,9 @@
       .addEventListener('click', resetPortfolioForm);
     document.querySelector('[data-portfolio-form]').addEventListener('submit', savePortfolio);
     document.querySelector('[data-manual-entry-form]').addEventListener('submit', saveManualEntry);
+    document.querySelector('[data-position-form]').addEventListener('submit', savePosition);
+    document.querySelector('[data-position-close-form]').addEventListener('submit', closePosition);
+    document.querySelector('[data-position-scale-form]').addEventListener('submit', scaleOutPosition);
 
     document.querySelectorAll('[data-view-tab]').forEach((tab) => {
       tab.addEventListener('click', () => activateView(tab.dataset.viewTab));
@@ -31,12 +37,19 @@
         state.schema = bootstrap.schema;
         state.dashboard = bootstrap.dashboard;
         state.portfolios = bootstrap.portfolios || [];
+        state.openPositions = bootstrap.openPositions || [];
+        state.closedPositions = bootstrap.closedPositions || [];
+        state.tradingAnalytics = bootstrap.tradingAnalytics || {};
         renderSheetList(bootstrap.schema.sheets);
         renderDashboard(bootstrap.dashboard);
         renderPortfolios(state.portfolios);
+        renderPositions(state.openPositions, state.closedPositions);
+        renderTradingAnalytics(state.tradingAnalytics);
         setStatus(
-          bootstrap.portfolioError || `${bootstrap.schema.sheets.length} required sheets configured`,
-          Boolean(bootstrap.portfolioError)
+          bootstrap.portfolioError ||
+            bootstrap.positionError ||
+            `${bootstrap.schema.sheets.length} required sheets configured`,
+          Boolean(bootstrap.portfolioError || bootstrap.positionError)
         );
       })
       .withFailureHandler(handleFailure)
@@ -101,6 +114,82 @@
       })
       .withFailureHandler(handleFailure)
       .addManualEntryApi(payload);
+  }
+
+  function savePosition(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const payload = formToObject(form);
+
+    if (!payload.portfolio_id) {
+      setStatus('Create a trading portfolio before saving a position', true);
+      return;
+    }
+
+    removeBlankFields(payload);
+
+    google.script.run
+      .withSuccessHandler(() => {
+        form.reset();
+        setToday();
+        renderPositionPortfolioSelect(state.portfolios);
+        loadBootstrap();
+        setStatus('Position saved');
+      })
+      .withFailureHandler(handleFailure)
+      .createPositionApi(payload);
+  }
+
+  function closePosition(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const payload = formToObject(form);
+    const positionId = payload.position_id;
+
+    if (!positionId) {
+      setStatus('Select an open position to close', true);
+      return;
+    }
+
+    delete payload.position_id;
+    removeBlankFields(payload);
+
+    google.script.run
+      .withSuccessHandler(() => {
+        form.reset();
+        setToday();
+        setPositionActionForms(null);
+        loadBootstrap();
+        setStatus('Position closed');
+      })
+      .withFailureHandler(handleFailure)
+      .closePositionApi(positionId, payload);
+  }
+
+  function scaleOutPosition(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const payload = formToObject(form);
+    const positionId = payload.position_id;
+
+    if (!positionId) {
+      setStatus('Select an open position to scale out', true);
+      return;
+    }
+
+    delete payload.position_id;
+    removeBlankFields(payload);
+
+    google.script.run
+      .withSuccessHandler(() => {
+        form.reset();
+        setToday();
+        setPositionActionForms(null);
+        loadBootstrap();
+        setStatus('Scale-out saved');
+      })
+      .withFailureHandler(handleFailure)
+      .scaleOutPositionApi(positionId, payload);
   }
 
   function archivePortfolio(portfolioId) {
@@ -198,6 +287,7 @@
     });
 
     renderManualPortfolioSelect(portfolios);
+    renderPositionPortfolioSelect(portfolios);
   }
 
   function renderManualPortfolioSelect(portfolios) {
@@ -224,6 +314,144 @@
     select.disabled = select.options.length === 0;
     manualSubmit.disabled = select.options.length === 0;
     manualSubmit.textContent = select.options.length === 0 ? 'No manual portfolios' : 'Save entry';
+  }
+
+  function renderPositionPortfolioSelect(portfolios) {
+    const select = document.querySelector('[data-position-portfolio-select]');
+    const submit = document.querySelector('[data-position-submit]');
+    const previous = select.value;
+    select.innerHTML = '';
+
+    portfolios
+      .filter((portfolio) => portfolio.type === 'trading')
+      .forEach((portfolio) => {
+        const option = document.createElement('option');
+        option.value = portfolio.portfolio_id;
+        option.textContent = portfolio.name;
+        option.dataset.riskPercent = portfolio.default_risk_pct || '';
+        select.append(option);
+      });
+
+    if (previous && Array.from(select.options).some((option) => option.value === previous)) {
+      select.value = previous;
+    } else if (select.options.length > 0) {
+      select.selectedIndex = 0;
+    }
+
+    const selected = select.selectedOptions[0];
+    const riskInput = document.querySelector('[data-position-form] input[name="risk_percent"]');
+    if (selected && !riskInput.value) {
+      riskInput.value = selected.dataset.riskPercent || '';
+    }
+
+    select.disabled = select.options.length === 0;
+    submit.disabled = select.options.length === 0;
+    submit.textContent = select.options.length === 0 ? 'No trading portfolios' : 'Save position';
+  }
+
+  function renderPositions(openPositions, closedPositions) {
+    renderPositionList('[data-open-position-list]', openPositions, true);
+    renderPositionList('[data-closed-position-list]', closedPositions, false);
+  }
+
+  function renderPositionList(selector, positions, isOpenList) {
+    const list = document.querySelector(selector);
+    list.innerHTML = '';
+
+    if (positions.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'muted-copy';
+      empty.textContent = isOpenList ? 'No open positions' : 'No closed positions';
+      list.append(empty);
+      return;
+    }
+
+    positions.forEach((position) => {
+      const card = document.createElement('article');
+      card.className = 'portfolio-card position-card';
+
+      const main = document.createElement('div');
+      const title = document.createElement('h3');
+      title.textContent = `${position.symbol} ${position.direction}`;
+      const meta = document.createElement('p');
+      meta.textContent = isOpenList
+        ? `${formatNumber(position.qty)} qty @ ${formatNumber(position.entry_price)}`
+        : `${formatNumber(position.exit_qty || position.qty)} qty / PNL ${formatSignedNumber(position.realized_pnl)}`;
+      main.append(title, meta);
+
+      const value = document.createElement('strong');
+      value.textContent = isOpenList
+        ? formatNumber(position.position_size)
+        : formatSignedNumber(position.realized_pnl);
+
+      card.append(main, value);
+
+      if (isOpenList) {
+        const actions = document.createElement('div');
+        actions.className = 'row-actions';
+
+        const close = document.createElement('button');
+        close.className = 'secondary-button';
+        close.type = 'button';
+        close.textContent = 'Close';
+        close.addEventListener('click', () => setPositionActionForms(position));
+
+        const scale = document.createElement('button');
+        scale.className = 'secondary-button';
+        scale.type = 'button';
+        scale.textContent = 'Scale out';
+        scale.addEventListener('click', () => setPositionActionForms(position));
+
+        actions.append(close, scale);
+        card.append(actions);
+      }
+
+      list.append(card);
+    });
+  }
+
+  function setPositionActionForms(position) {
+    const closeForm = document.querySelector('[data-position-close-form]');
+    const scaleForm = document.querySelector('[data-position-scale-form]');
+    const closeSubmit = document.querySelector('[data-position-close-submit]');
+    const scaleSubmit = document.querySelector('[data-position-scale-submit]');
+    const label = position ? `${position.symbol} ${formatNumber(position.qty)} qty` : '';
+
+    closeForm.elements.position_id.value = position ? position.position_id : '';
+    scaleForm.elements.position_id.value = position ? position.position_id : '';
+    document.querySelector('[data-position-close-title]').textContent = position
+      ? `Close ${label}`
+      : 'Close position';
+    document.querySelector('[data-position-scale-title]').textContent = position ? `Scale ${label}` : 'Scale out';
+    closeSubmit.disabled = !position;
+    scaleSubmit.disabled = !position;
+    closeSubmit.textContent = position ? 'Close position' : 'Select open position';
+    scaleSubmit.textContent = position ? 'Save scale-out' : 'Select open position';
+  }
+
+  function renderTradingAnalytics(analytics) {
+    document.querySelector('[data-analytics-count]').textContent = formatNumber(
+      analytics.closed_trade_count || 0
+    );
+    document.querySelector('[data-analytics-win-rate]').textContent = `${formatNumber(
+      Number(analytics.win_rate || 0) * 100
+    )}%`;
+    document.querySelector('[data-analytics-expectancy]').textContent = formatNumber(analytics.expectancy || 0);
+    document.querySelector('[data-analytics-profit-factor]').textContent = formatNumberOrDash(
+      analytics.profit_factor
+    );
+    document.querySelector('[data-analytics-average-r]').textContent = formatNumberOrDash(
+      analytics.average_r_multiple
+    );
+    document.querySelector('[data-analytics-largest-win]').textContent = formatNumberOrDash(
+      analytics.largest_win
+    );
+    document.querySelector('[data-analytics-largest-loss]').textContent = formatNumberOrDash(
+      analytics.largest_loss
+    );
+    document.querySelector('[data-analytics-loss-streak]').textContent = formatNumber(
+      analytics.max_consecutive_loss || 0
+    );
   }
 
   function renderSheetList(sheets) {
@@ -266,8 +494,9 @@
   }
 
   function setToday() {
-    const dateField = document.querySelector('[data-manual-entry-form] input[name="date"]');
-    dateField.value = getLocalDateInputValue();
+    document.querySelectorAll('input[type="date"]').forEach((dateField) => {
+      dateField.value = getLocalDateInputValue();
+    });
   }
 
   function getLocalDateInputValue() {
@@ -283,6 +512,14 @@
       values[entry[0]] = entry[1].trim();
       return values;
     }, {});
+  }
+
+  function removeBlankFields(values) {
+    Object.keys(values).forEach((key) => {
+      if (values[key] === '') {
+        delete values[key];
+      }
+    });
   }
 
   function fillForm(form, values) {
@@ -309,6 +546,26 @@
     }
 
     return entries.map((entry) => formatMoney(entry[1], entry[0])).join(' / ');
+  }
+
+  function formatNumber(value) {
+    return Number(value || 0).toLocaleString(undefined, {
+      maximumFractionDigits: 8,
+    });
+  }
+
+  function formatSignedNumber(value) {
+    const numberValue = Number(value || 0);
+    const prefix = numberValue > 0 ? '+' : '';
+    return `${prefix}${formatNumber(numberValue)}`;
+  }
+
+  function formatNumberOrDash(value) {
+    if (value === '' || value === undefined || value === null) {
+      return '-';
+    }
+
+    return formatNumber(value);
   }
 
   function formatInitStatus(result) {

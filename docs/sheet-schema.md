@@ -55,6 +55,11 @@ portfolio_id,name,type,market,base_currency,initial_capital,commission_rate,risk
 position_id,portfolio_id,parent_position_id,status,symbol,direction,entry_date,entry_price,qty,position_size,stop_loss,fee_entry,exit_date,exit_price,exit_qty,fee_exit,realized_pnl,note,created_at,updated_at
 ```
 
+Scale-out rows use `parent_position_id` to point at the original open
+position. The original row keeps the remaining open quantity, and the scale-out
+row is stored as `closed` with its own `exit_qty` and server-calculated
+`realized_pnl`.
+
 ### ManualEntries
 
 ```text
@@ -102,3 +107,8 @@ symbol,source,created_at
 13. Archive a portfolio from the UI, confirm the prompt appears, and confirm the row remains in `Portfolios` with `archived` set instead of being deleted.
 14. Add a backfilled manual entry with an older `date` and confirm it does not replace a newer dated balance on the dashboard.
 15. Create portfolios with different currencies and confirm the dashboard shows separate currency totals instead of one combined default-currency total.
+16. Add a long position to a trading portfolio and confirm it appears in Open positions.
+17. Try a long stop loss above the entry price and confirm the server rejects it.
+18. Close a full position and confirm it moves to Closed positions with server-calculated realized PNL.
+19. Scale out part of an open position and confirm the original row keeps the remaining quantity while a closed child row records the partial exit.
+20. Confirm Closed trade analytics update after at least one closed or scaled-out trade exists.

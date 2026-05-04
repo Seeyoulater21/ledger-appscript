@@ -8,6 +8,12 @@ This project follows a simple human-readable changelog format.
 
 ### Added
 
+- Added Phase 3 position MVP for issue #3:
+  - Position create/list/close/scale-out service functions.
+  - Server-side realized PNL and basic closed-trade analytics.
+  - Position API wrappers for frontend calls.
+  - Mobile-friendly add position, open positions, close, scale-out, closed positions, and analytics UI.
+  - Static tests for position validation, risk sizing, close, scale-out, and analytics behavior.
 - Added Phase 2 portfolio MVP for issue #2:
   - Portfolio create, list, edit, and archive service functions.
   - Manual balance/deposit/withdraw entry support for manual portfolios.
