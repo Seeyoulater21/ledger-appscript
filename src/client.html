@@ -1,0 +1,75 @@
+<script>
+  const state = {
+    schema: null,
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelector('[data-action="refresh"]').addEventListener('click', loadBootstrap);
+    document.querySelector('[data-action="init"]').addEventListener('click', initializeSheets);
+    loadBootstrap();
+  });
+
+  function loadBootstrap() {
+    setStatus('Loading');
+
+    google.script.run
+      .withSuccessHandler((schema) => {
+        state.schema = schema;
+        renderSheetList(schema.sheets);
+        setStatus(`${schema.sheets.length} required sheets configured`);
+      })
+      .withFailureHandler(handleFailure)
+      .getAppBootstrap();
+  }
+
+  function initializeSheets() {
+    setStatus('Initializing');
+
+    google.script.run
+      .withSuccessHandler((result) => {
+        renderSheetList(result.sheets);
+        setStatus(formatInitStatus(result));
+      })
+      .withFailureHandler(handleFailure)
+      .initializeLedger();
+  }
+
+  function renderSheetList(sheets) {
+    const list = document.querySelector('[data-sheet-list]');
+    list.innerHTML = '';
+
+    sheets.forEach((sheet) => {
+      const card = document.createElement('article');
+      card.className = 'sheet-card';
+
+      const title = document.createElement('h2');
+      title.textContent = sheet.name;
+
+      const meta = document.createElement('p');
+      meta.textContent = `${sheet.headers.length} columns`;
+
+      card.append(title, meta);
+      list.append(card);
+    });
+  }
+
+  function formatInitStatus(result) {
+    if (result.created.length === 0 && result.updated.length === 0) {
+      return 'Sheet schema is current';
+    }
+
+    const created = result.created.length;
+    const updated = result.updated.length;
+    return `${created} created, ${updated} updated`;
+  }
+
+  function setStatus(message, isError = false) {
+    const status = document.querySelector('[data-status]');
+    status.textContent = message;
+    status.classList.toggle('is-error', isError);
+  }
+
+  function handleFailure(error) {
+    setStatus(error.message || 'Request failed', true);
+  }
+</script>

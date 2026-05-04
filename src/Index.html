@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <title><?= LEDGER_APP.name ?></title>
+    <?!= include('styles') ?>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">v<?= LEDGER_APP.version ?></p>
+          <h1>Personal Trading Ledger</h1>
+        </div>
+        <button class="icon-button" type="button" data-action="refresh" aria-label="Refresh">
+          &#8635;
+        </button>
+      </header>
+
+      <section class="status-panel" aria-live="polite">
+        <div>
+          <p class="panel-label">Sheet status</p>
+          <p class="status-text" data-status>Loading</p>
+        </div>
+        <button class="primary-button" type="button" data-action="init">Initialize sheets</button>
+      </section>
+
+      <nav class="tabbar" aria-label="Ledger sections">
+        <button class="tab is-active" type="button">Dashboard</button>
+        <button class="tab" type="button">Portfolios</button>
+        <button class="tab" type="button">Positions</button>
+        <button class="tab" type="button">Holdings</button>
+      </nav>
+
+      <section class="dashboard-grid" data-sheet-list></section>
+    </main>
+
+    <?!= include('client') ?>
+  </body>
+</html>

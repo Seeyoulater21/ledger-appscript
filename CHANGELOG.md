@@ -8,6 +8,17 @@ This project follows a simple human-readable changelog format.
 
 ### Added
 
+- Added Apps Script web app skeleton for issue #1:
+  - `appsscript.json`
+  - `src/Code.gs`
+  - `src/Config.gs`
+  - `src/SheetService.gs`
+  - `src/Index.html`
+  - `src/styles.html`
+  - `src/client.html`
+- Added sheet initialization for required tabs using the active bound spreadsheet.
+- Added `docs/sheet-schema.md` with required tabs, headers, defaults, and manual test steps.
+- Added a lightweight Node static test for the Phase 1 skeleton.
 - Initial project documentation package.
 - Added `AGENTS.md` for Codex agent workflow and project guardrails.
 - Added `README.md` for project overview.
