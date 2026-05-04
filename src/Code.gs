@@ -14,6 +14,7 @@ function getAppBootstrap() {
     app: LEDGER_APP,
     schema: getSheetSchema(),
     dashboard: getEmptyPortfolioSummary_(),
+    dashboardOverview: getEmptyDashboardOverview_(),
     portfolios: [],
     openPositions: [],
     closedPositions: [],
@@ -29,6 +30,12 @@ function getAppBootstrap() {
     bootstrap.portfolios = listPortfolios();
   } catch (error) {
     bootstrap.portfolioError = error.message;
+  }
+
+  try {
+    bootstrap.dashboardOverview = getDashboardOverview();
+  } catch (error) {
+    bootstrap.dashboardOverviewError = error.message;
   }
 
   try {
@@ -96,12 +103,66 @@ function getEmptyHoldingsSummary_() {
   };
 }
 
+function getEmptyDashboardOverview_() {
+  return {
+    currency: LEDGER_APP.defaultCurrency,
+    fx: {
+      usd_thb: 34.5,
+      source: 'fallback',
+    },
+    generated_at: '',
+    totals: {
+      total_portfolio_value_usd: 0,
+      trading_balance_usd: 0,
+      holdings_value_usd: 0,
+      total_portfolio_value_display: 0,
+      trading_balance_display: 0,
+      holdings_value_display: 0,
+    },
+    today_pnl: {
+      value_usd: 0,
+      value_display: 0,
+      has_prior_snapshot: false,
+      prior_snapshot_date: '',
+      label: 'No snapshot yet',
+    },
+    portfolios: [],
+    holdings: [],
+    allocation: [],
+    pnl_overview: [],
+    growth: [],
+    snapshots: [],
+    warnings: [],
+    unconverted_items: [],
+    empty_states: {
+      allocation: true,
+      growth: true,
+      pnl_overview: true,
+    },
+    notes: {
+      historical_currency: 'Historical charts use USD snapshots.',
+    },
+  };
+}
+
 function initializeLedger() {
   return initRequiredSheets();
 }
 
 function getDashboardApi() {
   return getPortfolioSummary();
+}
+
+function getDashboardOverviewApi(options) {
+  return getDashboardOverview(options || {});
+}
+
+function createDailySnapshotApi(payload) {
+  return createDailySnapshot(payload || {});
+}
+
+function listDailySnapshotsApi(options) {
+  return listDailySnapshots(options || {});
 }
 
 function listPortfoliosApi(options) {

@@ -2,6 +2,8 @@
   const state = {
     schema: null,
     dashboard: null,
+    dashboardOverview: null,
+    dashboardCurrency: 'USD',
     portfolios: [],
     openPositions: [],
     closedPositions: [],
@@ -15,6 +17,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('[data-action="refresh"]').addEventListener('click', loadBootstrap);
     document.querySelector('[data-action="init"]').addEventListener('click', initializeSheets);
+    document.querySelector('[data-action="create-snapshot"]').addEventListener('click', createDailySnapshot);
     document.querySelector('[data-action="new-portfolio"]').addEventListener('click', resetPortfolioForm);
     document
       .querySelector('[data-action="clear-portfolio-form"]')
@@ -33,6 +36,9 @@
     document.querySelectorAll('[data-view-tab]').forEach((tab) => {
       tab.addEventListener('click', () => activateView(tab.dataset.viewTab));
     });
+    document.querySelectorAll('[data-dashboard-currency] [data-currency]').forEach((button) => {
+      button.addEventListener('click', () => setDashboardCurrency(button.dataset.currency));
+    });
 
     setToday();
     loadBootstrap();
@@ -45,6 +51,8 @@
       .withSuccessHandler((bootstrap) => {
         state.schema = bootstrap.schema;
         state.dashboard = bootstrap.dashboard;
+        state.dashboardOverview = bootstrap.dashboardOverview || {};
+        state.dashboardCurrency = state.dashboardOverview.currency || state.dashboardCurrency;
         state.portfolios = bootstrap.portfolios || [];
         state.openPositions = bootstrap.openPositions || [];
         state.closedPositions = bootstrap.closedPositions || [];
@@ -54,7 +62,7 @@
         state.priceCache = bootstrap.priceCache || [];
         state.watchlist = bootstrap.watchlist || [];
         renderSheetList(bootstrap.schema.sheets);
-        renderDashboard(bootstrap.dashboard);
+        renderDashboardOverview(state.dashboardOverview);
         renderPortfolios(state.portfolios);
         renderPositions(state.openPositions, state.closedPositions);
         renderTradingAnalytics(state.tradingAnalytics);
@@ -65,8 +73,14 @@
           bootstrap.portfolioError ||
             bootstrap.positionError ||
             bootstrap.holdingError ||
+            bootstrap.dashboardOverviewError ||
             `${bootstrap.schema.sheets.length} required sheets configured`,
-          Boolean(bootstrap.portfolioError || bootstrap.positionError || bootstrap.holdingError)
+          Boolean(
+            bootstrap.portfolioError ||
+              bootstrap.positionError ||
+              bootstrap.holdingError ||
+              bootstrap.dashboardOverviewError
+          )
         );
       })
       .withFailureHandler(handleFailure)
@@ -84,6 +98,35 @@
       })
       .withFailureHandler(handleFailure)
       .initializeLedger();
+  }
+
+  function setDashboardCurrency(currency) {
+    state.dashboardCurrency = currency === 'THB' ? 'THB' : 'USD';
+    document.querySelectorAll('[data-dashboard-currency] [data-currency]').forEach((button) => {
+      button.classList.toggle('is-active', button.dataset.currency === state.dashboardCurrency);
+    });
+
+    setStatus('Loading dashboard');
+    google.script.run
+      .withSuccessHandler((overview) => {
+        state.dashboardOverview = overview;
+        renderDashboardOverview(overview);
+        setStatus('Dashboard updated');
+      })
+      .withFailureHandler(handleFailure)
+      .getDashboardOverviewApi({ currency: state.dashboardCurrency });
+  }
+
+  function createDailySnapshot() {
+    setStatus('Creating snapshot');
+
+    google.script.run
+      .withSuccessHandler(() => {
+        loadBootstrap();
+        setStatus('Snapshot saved');
+      })
+      .withFailureHandler(handleFailure)
+      .createDailySnapshotApi({});
   }
 
   function savePortfolio(event) {
@@ -350,6 +393,173 @@
     document.querySelector('[data-dashboard-total]').textContent = formatMoney(summary.total_value, currency);
     document.querySelector('[data-dashboard-trading]').textContent = formatMoney(summary.trading_value, currency);
     document.querySelector('[data-dashboard-manual]').textContent = formatMoney(summary.manual_value, currency);
+  }
+
+  function renderDashboardOverview(overview) {
+    const data = overview || {};
+    const currency = data.currency || state.dashboardCurrency || 'USD';
+    const totals = data.totals || {};
+    const todayPnl = data.today_pnl || {};
+
+    state.dashboardCurrency = currency;
+    document.querySelectorAll('[data-dashboard-currency] [data-currency]').forEach((button) => {
+      button.classList.toggle('is-active', button.dataset.currency === currency);
+    });
+
+    document.querySelector('[data-dashboard-total]').textContent = formatMoney(
+      totals.total_portfolio_value_display || 0,
+      currency
+    );
+    document.querySelector('[data-dashboard-today-pnl]').textContent = formatSignedMoney(
+      todayPnl.value_display || 0,
+      currency
+    );
+    document.querySelector('[data-dashboard-pnl-label]').textContent = todayPnl.label || 'No snapshot yet';
+    document.querySelector('[data-dashboard-trading]').textContent = formatMoney(
+      totals.trading_balance_display || 0,
+      currency
+    );
+    document.querySelector('[data-dashboard-holdings]').textContent = formatMoney(
+      totals.holdings_value_display || 0,
+      currency
+    );
+
+    renderDashboardAllocation(data.allocation || [], currency);
+    renderDashboardPortfolioSummary(data.portfolios || [], currency, data.fx || {});
+    renderDashboardPnlOverview(data.pnl_overview || []);
+    renderDashboardGrowth(data.growth || []);
+    renderDashboardWarnings(data.warnings || [], data.unconverted_items || []);
+  }
+
+  function renderDashboardWarnings(warnings, unconvertedItems) {
+    const list = document.querySelector('[data-dashboard-warnings]');
+    list.innerHTML = '';
+
+    warnings.forEach((warning) => {
+      const item = document.createElement('p');
+      item.className = 'warning-copy';
+      const details = unconvertedItems.length
+        ? ` ${unconvertedItems.map((entry) => `${entry.label} ${entry.currency}`).join(', ')}`
+        : '';
+      item.textContent = warning + details;
+      list.append(item);
+    });
+  }
+
+  function renderDashboardAllocation(allocation, currency) {
+    const list = document.querySelector('[data-dashboard-allocation]');
+    list.innerHTML = '';
+
+    if (allocation.length === 0) {
+      list.append(createEmptyText('No allocation yet'));
+      return;
+    }
+
+    allocation.forEach((item) => {
+      const row = document.createElement('article');
+      row.className = 'allocation-row';
+      const bar = document.createElement('span');
+      bar.className = 'allocation-bar';
+      bar.style.width = `${Math.max(4, Number(item.pct || 0) * 100)}%`;
+
+      const label = document.createElement('strong');
+      label.textContent = item.label;
+      const meta = document.createElement('span');
+      meta.textContent = `${item.kind} / ${formatPercent(item.pct)} / ${formatMoney(item.value_display, currency)}`;
+
+      row.append(bar, label, meta);
+      list.append(row);
+    });
+  }
+
+  function renderDashboardPortfolioSummary(portfolios, currency, fx) {
+    const list = document.querySelector('[data-dashboard-portfolio-summary]');
+    list.innerHTML = '';
+
+    if (portfolios.length === 0) {
+      list.append(createEmptyText('No portfolios'));
+      return;
+    }
+
+    portfolios.forEach((portfolio) => {
+      const card = document.createElement('article');
+      card.className = 'portfolio-card position-card';
+      const main = document.createElement('div');
+      const title = document.createElement('h3');
+      title.textContent = portfolio.name;
+      const meta = document.createElement('p');
+      meta.textContent = `${portfolio.type} / PNL ${formatPercentOrDash(portfolio.pnl_pct, true)}`;
+      main.append(title, meta);
+
+      const value = document.createElement('strong');
+      value.textContent = formatMoney(
+        convertUsdForDisplay(portfolio.value_usd || 0, currency, fx),
+        currency
+      );
+
+      card.append(main, value);
+      list.append(card);
+    });
+  }
+
+  function renderDashboardPnlOverview(rows) {
+    const chart = document.querySelector('[data-dashboard-pnl-overview]');
+    chart.innerHTML = '';
+
+    if (rows.length === 0) {
+      chart.append(createEmptyText('No snapshot yet'));
+      return;
+    }
+
+    const max = Math.max(
+      1,
+      ...rows.map((row) => Math.abs(Number(row.pnl_usd || 0)))
+    );
+
+    rows.slice(-10).forEach((row) => {
+      const item = document.createElement('article');
+      item.className = 'chart-row';
+      const label = document.createElement('span');
+      label.textContent = row.date;
+      const bar = document.createElement('span');
+      bar.className = Number(row.pnl_usd || 0) < 0 ? 'chart-bar is-negative' : 'chart-bar';
+      bar.style.width = `${Math.max(4, (Math.abs(Number(row.pnl_usd || 0)) / max) * 100)}%`;
+      const value = document.createElement('strong');
+      value.textContent = formatSignedMoney(row.pnl_usd, 'USD');
+      item.append(label, bar, value);
+      chart.append(item);
+    });
+  }
+
+  function renderDashboardGrowth(rows) {
+    const chart = document.querySelector('[data-dashboard-growth]');
+    const historicalNote = 'Historical charts use USD snapshots.';
+    chart.innerHTML = '';
+    chart.dataset.note = historicalNote;
+
+    if (rows.length < 2) {
+      chart.append(createEmptyText('No snapshot yet'));
+      return;
+    }
+
+    const max = Math.max(
+      1,
+      ...rows.map((row) => Number(row.total_portfolio_value_usd || 0))
+    );
+
+    rows.slice(-10).forEach((row) => {
+      const item = document.createElement('article');
+      item.className = 'chart-row';
+      const label = document.createElement('span');
+      label.textContent = row.date;
+      const bar = document.createElement('span');
+      bar.className = 'chart-bar';
+      bar.style.width = `${Math.max(4, (Number(row.total_portfolio_value_usd || 0) / max) * 100)}%`;
+      const value = document.createElement('strong');
+      value.textContent = formatMoney(row.total_portfolio_value_usd, 'USD');
+      item.append(label, bar, value);
+      chart.append(item);
+    });
   }
 
   function renderPortfolios(portfolios) {
@@ -813,6 +1023,12 @@
     })} ${currency}`;
   }
 
+  function formatSignedMoney(value, currency) {
+    const numberValue = Number(value || 0);
+    const prefix = numberValue > 0 ? '+' : '';
+    return `${prefix}${formatMoney(numberValue, currency)}`;
+  }
+
   function formatCurrencyBreakdown(values) {
     const entries = Object.entries(values || {}).filter((entry) => Number(entry[1] || 0) !== 0);
 
@@ -835,12 +1051,39 @@
     return `${prefix}${formatNumber(numberValue)}`;
   }
 
+  function formatPercent(value) {
+    return `${formatNumber(Number(value || 0) * 100)}%`;
+  }
+
+  function formatPercentOrDash(value, alreadyPercent = false) {
+    if (value === '' || value === undefined || value === null) {
+      return '-';
+    }
+
+    return `${formatNumber(alreadyPercent ? value : Number(value || 0) * 100)}%`;
+  }
+
   function formatNumberOrDash(value) {
     if (value === '' || value === undefined || value === null) {
       return '-';
     }
 
     return formatNumber(value);
+  }
+
+  function convertUsdForDisplay(valueUsd, currency, fx) {
+    if (currency === 'THB') {
+      return Number(valueUsd || 0) * Number((fx && fx.usd_thb) || 34.5);
+    }
+
+    return Number(valueUsd || 0);
+  }
+
+  function createEmptyText(message) {
+    const empty = document.createElement('p');
+    empty.className = 'muted-copy';
+    empty.textContent = message;
+    return empty;
   }
 
   function formatInitStatus(result) {

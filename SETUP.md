@@ -151,6 +151,7 @@ Code.gs
 Config.gs
 Api.gs
 SheetService.gs
+DashboardService.gs
 PortfolioService.gs
 PositionService.gs
 HoldingService.gs
