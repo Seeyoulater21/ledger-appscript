@@ -31,6 +31,7 @@
         <button class="tab" type="button" data-view-tab="portfolios">Portfolios</button>
         <button class="tab" type="button" data-view-tab="positions">Positions</button>
         <button class="tab" type="button" data-view-tab="holdings">Holdings</button>
+        <button class="tab" type="button" data-view-tab="settings">Settings</button>
       </nav>
 
       <section class="view is-active" data-view="dashboard">
@@ -602,6 +603,56 @@
             </form>
 
             <div class="watchlist-list" data-watchlist-list></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" data-view="settings">
+        <div class="settings-layout">
+          <section class="portfolio-panel">
+            <div class="section-heading">
+              <h2>Backup</h2>
+              <button class="secondary-button" type="button" data-action="export-backup">Export JSON</button>
+            </div>
+            <label>
+              Backup JSON
+              <textarea name="backup_output" rows="12" readonly data-backup-output></textarea>
+            </label>
+          </section>
+
+          <section class="portfolio-panel">
+            <form class="stack-form" data-import-backup-form>
+              <div class="section-heading">
+                <h2>Import</h2>
+              </div>
+
+              <label>
+                Trusted backup JSON
+                <textarea name="backup_json" rows="10" required></textarea>
+              </label>
+
+              <label>
+                Type IMPORT
+                <input name="import_confirmation" type="text" autocomplete="off" required>
+              </label>
+
+              <button class="primary-button" type="submit">Import backup</button>
+            </form>
+
+            <form class="stack-form" data-reset-ledger-form>
+              <div class="section-heading">
+                <h2>Reset data</h2>
+              </div>
+
+              <p class="warning-copy">Reset clears app-owned rows in this Sheet. Recovery requires an external backup.</p>
+
+              <label>
+                Type RESET
+                <input name="reset_confirmation" type="text" autocomplete="off" required>
+              </label>
+
+              <button class="danger-button" type="submit">Reset ledger</button>
+            </form>
           </section>
         </div>
       </section>

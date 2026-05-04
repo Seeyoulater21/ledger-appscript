@@ -977,6 +977,167 @@ test('dashboard API and UI expose issue #5 workflows', () => {
   assert.match(client, /Historical charts use USD snapshots/);
 });
 
+test('backup service exports required tabs, imports trusted backups, and resets with confirmation', () => {
+  const sourceSpreadsheet = new FakeSpreadsheet();
+  const source = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => sourceSpreadsheet,
+    },
+    Utilities: {
+      getUuid: createUuidSequence(),
+    },
+  });
+
+  source.initRequiredSheets();
+  const portfolio = source.createPortfolio({
+    name: 'Backup Trading',
+    type: 'trading',
+    market: 'crypto',
+    base_currency: 'USD',
+    initial_capital: 5000,
+    commission_rate: 0.001,
+    risk_mode: 'none',
+    default_risk_pct: 0,
+  });
+  source.createPosition({
+    portfolio_id: portfolio.portfolio_id,
+    symbol: 'BTC',
+    direction: 'long',
+    entry_price: 100,
+    qty: 1,
+    stop_loss: 90,
+  });
+  source.upsertManualPrice({
+    symbol: 'BTC',
+    source: 'manual',
+    price: 110,
+    currency: 'USD',
+  });
+  appendObjectRow(sourceSpreadsheet, 'ManualEntries', {
+    entry_id: 'entry_date_object',
+    portfolio_id: portfolio.portfolio_id,
+    date: new Date('2026-05-04T00:00:00.000Z'),
+    type: 'balance',
+    amount: 100,
+    balance_after: 100,
+    currency: 'USD',
+    note: 'date object row',
+    created_at: new Date('2026-05-04T01:02:03.000Z'),
+  });
+
+  const backup = source.createLedgerBackup();
+  assert.equal(backup.format, 'ledger-appscript-backup-v1');
+  assert.equal(backup.sheets.length, 8);
+  assert.equal(backup.sheets.find((sheet) => sheet.name === 'Portfolios').rows.length, 1);
+  assert.equal(backup.sheets.find((sheet) => sheet.name === 'Settings').headers[0], 'key');
+  const manualRows = backup.sheets.find((sheet) => sheet.name === 'ManualEntries').rows;
+  assert.equal(manualRows[0].date, '2026-05-04T00:00:00.000Z');
+  assert.equal(manualRows[0].created_at, '2026-05-04T01:02:03.000Z');
+  assert.doesNotMatch(JSON.stringify(backup), /"_rowNumber"/);
+
+  const targetSpreadsheet = new FakeSpreadsheet();
+  const target = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => targetSpreadsheet,
+    },
+    Utilities: {
+      getUuid: createUuidSequence(),
+    },
+  });
+
+  target.initRequiredSheets();
+  target.createPortfolio({
+    name: 'Replace Me',
+    type: 'trading',
+    market: 'custom',
+    base_currency: 'USD',
+    initial_capital: 1,
+  });
+
+  assert.throws(() => target.importLedgerBackup(backup, { confirmation: 'WRONG' }), /type IMPORT/);
+
+  const imported = target.importLedgerBackup(JSON.stringify(backup), { confirmation: 'IMPORT' });
+  assert.equal(imported.imported.Portfolios, 1);
+  assert.deepEqual(
+    target.listPortfolios().map((item) => item.name),
+    ['Backup Trading']
+  );
+  assert.equal(target.listOpenPositions().length, 1);
+  assert.equal(target.listPriceCache().length, 1);
+
+  assert.throws(() => target.resetLedgerData({ confirmation: 'NO' }), /type RESET/);
+  const reset = target.resetLedgerData({ confirmation: 'RESET' });
+  assert.equal(reset.cleared.Portfolios, 1);
+  assert.equal(target.listPortfolios().length, 0);
+  assert.equal(target.readRows_('Settings').length, 4);
+});
+
+test('backup import rejects schema mismatches before writing rows', () => {
+  const spreadsheet = new FakeSpreadsheet();
+  const context = loadAppsScript({
+    SpreadsheetApp: {
+      getActiveSpreadsheet: () => spreadsheet,
+    },
+  });
+
+  context.initRequiredSheets();
+  const backup = context.createLedgerBackup();
+  backup.sheets.find((sheet) => sheet.name === 'Portfolios').headers = ['bad_header'];
+
+  assert.throws(
+    () => context.importLedgerBackup(backup, { confirmation: 'IMPORT' }),
+    /schema does not match/
+  );
+  assert.equal(context.listPortfolios().length, 0);
+});
+
+test('backup API and UI expose issue #6 workflows', () => {
+  const code = read('src/Code.gs');
+  const index = read('src/Index.html');
+  const client = read('src/client.html');
+
+  for (const fn of [
+    'createLedgerBackupApi',
+    'importLedgerBackupApi',
+    'resetLedgerDataApi',
+  ]) {
+    assert.match(code, new RegExp(`function\\s+${fn}\\s*\\(`));
+  }
+
+  assert.match(index, /data-view-tab="settings"/);
+  assert.match(index, /data-action="export-backup"/);
+  assert.match(index, /data-backup-output/);
+  assert.match(index, /data-import-backup-form/);
+  assert.match(index, /name="import_confirmation"/);
+  assert.match(index, /data-reset-ledger-form/);
+  assert.match(client, /exportBackup/);
+  assert.match(client, /importBackup/);
+  assert.match(client, /resetLedger/);
+  assert.match(client, /IMPORT/);
+  assert.match(client, /RESET/);
+});
+
+test('issue #6 clone, mobile, deployment, and checklist docs exist', () => {
+  const readme = read('README.md');
+  const setup = read('SETUP.md');
+  const deployment = read('DEPLOYMENT.md');
+  const cloneGuide = read('docs/clone-guide.md');
+  const mobileGuide = read('docs/mobile-usage.md');
+  const checklist = read('docs/manual-test-checklist.md');
+
+  for (const doc of [readme, setup, deployment, cloneGuide, mobileGuide, checklist]) {
+    assert.match(doc, /script\.google\.com/);
+    assert.match(doc, /GitHub Pages/i);
+    assert.match(doc, /credentials/i);
+  }
+
+  assert.match(cloneGuide, /copied Sheet/i);
+  assert.match(mobileGuide, /Add to Home Screen/i);
+  assert.match(checklist, /export backup/i);
+  assert.match(checklist, /import/i);
+  assert.match(checklist, /RESET/);
+});
+
 test('position API and UI expose issue #3 workflows', () => {
   const code = read('src/Code.gs');
   const index = read('src/Index.html');
@@ -1045,6 +1206,7 @@ function loadAppsScript(globals = {}) {
   vm.runInContext(read('src/HoldingService.gs'), context);
   vm.runInContext(read('src/SnapshotService.gs'), context);
   vm.runInContext(read('src/DashboardService.gs'), context);
+  vm.runInContext(read('src/BackupService.gs'), context);
   vm.runInContext(read('src/Code.gs'), context);
   return context;
 }
@@ -1109,6 +1271,10 @@ class FakeSheet {
 
   appendRow(values) {
     this.rows.push(values.slice());
+  }
+
+  deleteRows(row, rowCount) {
+    this.rows.splice(row - 1, rowCount);
   }
 
   getRange(row, column, rowCount, columnCount) {

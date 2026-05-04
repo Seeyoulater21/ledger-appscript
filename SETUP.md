@@ -259,7 +259,20 @@ After adding the source files:
 8. Close the test position.
 9. Add a test holding.
 10. Check Dashboard.
+11. Export a backup from Settings.
+12. Import the trusted backup into a copied test Sheet by typing IMPORT.
+13. Reset only after exporting a backup and typing RESET.
 ```
+
+For the full clone and mobile checks, see:
+
+```text
+docs/clone-guide.md
+docs/mobile-usage.md
+docs/manual-test-checklist.md
+```
+
+GitHub remains source storage only. Production deployment is through `script.google.com`; GitHub Pages is not used for MVP. Do not commit credentials, OAuth tokens, private Sheet URLs, private Web App URLs, or backup JSON.
 
 ---
 
