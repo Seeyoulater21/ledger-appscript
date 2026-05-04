@@ -188,9 +188,194 @@
         </div>
       </section>
 
-      <section class="view empty-state" data-view="positions">
-        <h2>Positions</h2>
-        <p>Phase 3</p>
+      <section class="view" data-view="positions">
+        <div class="position-layout">
+          <section class="portfolio-panel">
+            <div class="section-heading">
+              <h2>Open positions</h2>
+            </div>
+            <div class="position-list" data-open-position-list></div>
+
+            <div class="section-heading section-heading-spaced">
+              <h2>Closed positions</h2>
+            </div>
+            <div class="position-list" data-closed-position-list></div>
+          </section>
+
+          <section class="portfolio-panel">
+            <form class="stack-form" data-position-form>
+              <div class="section-heading">
+                <h2>Add position</h2>
+              </div>
+
+              <label>
+                Portfolio
+                <select name="portfolio_id" required data-position-portfolio-select></select>
+              </label>
+
+              <div class="form-grid">
+                <label>
+                  Symbol
+                  <input name="symbol" type="text" autocomplete="off" required>
+                </label>
+
+                <label>
+                  Direction
+                  <select name="direction" required>
+                    <option value="long">Long</option>
+                    <option value="short">Short</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Entry date
+                  <input name="entry_date" type="date" required>
+                </label>
+
+                <label>
+                  Entry price
+                  <input name="entry_price" type="number" inputmode="decimal" step="0.00000001" required>
+                </label>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Stop loss
+                  <input name="stop_loss" type="number" inputmode="decimal" step="0.00000001">
+                </label>
+
+                <label>
+                  Sizing
+                  <select name="sizing_mode" data-position-sizing-mode>
+                    <option value="manual_qty">Manual qty</option>
+                    <option value="fixed_risk_percent">Fixed risk %</option>
+                    <option value="fixed_cash">Fixed cash</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Qty
+                  <input name="qty" type="number" inputmode="decimal" step="0.00000001">
+                </label>
+
+                <label>
+                  Risk %
+                  <input name="risk_percent" type="number" inputmode="decimal" step="0.01">
+                </label>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Risk cash
+                  <input name="risk_cash" type="number" inputmode="decimal" step="0.01">
+                </label>
+
+                <label>
+                  Entry fee
+                  <input name="fee_entry" type="number" inputmode="decimal" step="0.00000001">
+                </label>
+              </div>
+
+              <label>
+                Note
+                <input name="note" type="text" autocomplete="off">
+              </label>
+
+              <button class="primary-button" type="submit" data-position-submit>Save position</button>
+            </form>
+
+            <form class="stack-form" data-position-close-form>
+              <input type="hidden" name="position_id">
+              <div class="section-heading">
+                <h2 data-position-close-title>Close position</h2>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Exit date
+                  <input name="exit_date" type="date" required>
+                </label>
+
+                <label>
+                  Exit price
+                  <input name="exit_price" type="number" inputmode="decimal" step="0.00000001" required>
+                </label>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Exit fee
+                  <input name="fee_exit" type="number" inputmode="decimal" step="0.00000001" value="0">
+                </label>
+
+                <label>
+                  Note
+                  <input name="note" type="text" autocomplete="off">
+                </label>
+              </div>
+
+              <button class="primary-button" type="submit" data-position-close-submit disabled>Select open position</button>
+            </form>
+
+            <form class="stack-form" data-position-scale-form>
+              <input type="hidden" name="position_id">
+              <div class="section-heading">
+                <h2 data-position-scale-title>Scale out</h2>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Exit qty
+                  <input name="exit_qty" type="number" inputmode="decimal" step="0.00000001" required>
+                </label>
+
+                <label>
+                  Exit price
+                  <input name="exit_price" type="number" inputmode="decimal" step="0.00000001" required>
+                </label>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Exit date
+                  <input name="exit_date" type="date" required>
+                </label>
+
+                <label>
+                  Exit fee
+                  <input name="fee_exit" type="number" inputmode="decimal" step="0.00000001" value="0">
+                </label>
+              </div>
+
+              <label>
+                Note
+                <input name="note" type="text" autocomplete="off">
+              </label>
+
+              <button class="primary-button" type="submit" data-position-scale-submit disabled>Select open position</button>
+            </form>
+
+            <section class="analytics-panel" data-trading-analytics>
+              <div class="section-heading">
+                <h2>Closed trade analytics</h2>
+              </div>
+              <div class="analytics-grid">
+                <article><span>Win rate</span><strong data-analytics-win-rate>0%</strong></article>
+                <article><span>Expectancy</span><strong data-analytics-expectancy>0</strong></article>
+                <article><span>Profit factor</span><strong data-analytics-profit-factor>0</strong></article>
+                <article><span>Avg R</span><strong data-analytics-average-r>0</strong></article>
+                <article><span>Largest win</span><strong data-analytics-largest-win>0</strong></article>
+                <article><span>Largest loss</span><strong data-analytics-largest-loss>0</strong></article>
+                <article><span>Max loss streak</span><strong data-analytics-loss-streak>0</strong></article>
+                <article><span>Closed trades</span><strong data-analytics-count>0</strong></article>
+              </div>
+            </section>
+          </section>
+        </div>
       </section>
 
       <section class="view empty-state" data-view="holdings">

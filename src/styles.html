@@ -191,6 +191,13 @@
     align-items: start;
   }
 
+  .position-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 460px);
+    gap: 14px;
+    align-items: start;
+  }
+
   .portfolio-panel {
     padding: 16px;
     border: 1px solid var(--line);
@@ -210,12 +217,17 @@
     margin-bottom: 14px;
   }
 
+  .section-heading-spaced {
+    margin-top: 22px;
+  }
+
   .section-heading h2 {
     margin: 0;
     font-size: 1.05rem;
   }
 
   .portfolio-list,
+  .position-list,
   .stack-form {
     display: grid;
     gap: 12px;
@@ -255,6 +267,10 @@
   .portfolio-card strong {
     text-align: right;
     white-space: nowrap;
+  }
+
+  .position-card strong {
+    font-variant-numeric: tabular-nums;
   }
 
   .row-actions {
@@ -314,6 +330,40 @@
     line-height: 1.4;
   }
 
+  .analytics-panel {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+
+  .analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .analytics-grid article {
+    min-height: 70px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg);
+  }
+
+  .analytics-grid span {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .analytics-grid strong {
+    display: block;
+    font-size: 1.1rem;
+    font-variant-numeric: tabular-nums;
+  }
+
   .is-error {
     color: var(--danger);
   }
@@ -333,6 +383,7 @@
     }
 
     .portfolio-layout,
+    .position-layout,
     .form-grid,
     .portfolio-card {
       grid-template-columns: 1fr;
